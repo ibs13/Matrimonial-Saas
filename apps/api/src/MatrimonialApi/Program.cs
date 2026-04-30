@@ -13,6 +13,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(opts =>
     opts.UseNpgsql(builder.Configuration.GetConnectionString("Postgres")));
 
+// MongoDbContext is singleton — MongoClient is thread-safe and meant to be reused
+builder.Services.AddSingleton<MongoDbContext>();
+
 // ── Services ──────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthService>();
