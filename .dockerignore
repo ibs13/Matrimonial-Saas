@@ -1,0 +1,90 @@
+# =========================
+# Git
+# =========================
+.git
+.gitignore
+.github
+
+# =========================
+# Environment / Secrets
+# =========================
+.env
+.env.*
+!.env.example
+
+*.pfx
+*.pem
+*.key
+*.crt
+
+# =========================
+# OS / Editor
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode
+.idea
+
+# =========================
+# Logs
+# =========================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# .NET
+# =========================
+**/bin
+**/obj
+**/TestResults
+**/coverage
+*.user
+*.suo
+*.rsuser
+
+# =========================
+# Node / Next.js
+# =========================
+node_modules
+frontend/node_modules
+.next
+frontend/.next
+out
+frontend/out
+dist
+frontend/dist
+build
+frontend/build
+coverage
+frontend/coverage
+*.tsbuildinfo
+
+# =========================
+# Docker local data
+# =========================
+docker-data
+postgres-data
+mongo-data
+pgadmin-data
+
+# =========================
+# Uploads / Generated files
+# =========================
+uploads
+backend/uploads
+frontend/public/uploads
+reports
+screenshots
+playwright-report
+test-results
+
+# =========================
+# Docs not needed in image
+# =========================
+README.md
+docs

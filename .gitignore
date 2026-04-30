@@ -1,0 +1,135 @@
+# =========================
+# OS / Editor
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+
+.idea/
+*.swp
+*.swo
+
+# =========================
+# Environment / Secrets
+# =========================
+.env
+.env.*
+!.env.example
+
+appsettings.Production.json
+appsettings.Development.local.json
+appsettings.Local.json
+
+*.pfx
+*.pem
+*.key
+*.crt
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# .NET / ASP.NET Core
+# =========================
+bin/
+obj/
+.vs/
+TestResults/
+*.user
+*.suo
+*.rsuser
+*.userosscache
+*.sln.docstates
+
+# Build artifacts
+backend/**/bin/
+backend/**/obj/
+backend/**/TestResults/
+backend/**/coverage/
+backend/**/coverage.opencover.xml
+
+# Entity Framework temporary files
+*.db
+*.db-shm
+*.db-wal
+
+# =========================
+# Node / Next.js / TypeScript
+# =========================
+node_modules/
+frontend/node_modules/
+
+.next/
+frontend/.next/
+
+out/
+frontend/out/
+
+dist/
+frontend/dist/
+
+build/
+frontend/build/
+
+coverage/
+frontend/coverage/
+
+*.tsbuildinfo
+next-env.d.ts
+
+# =========================
+# Package managers
+# =========================
+.pnpm-store/
+.yarn/
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+
+# Keep lock files tracked
+!package-lock.json
+!yarn.lock
+!pnpm-lock.yaml
+
+# =========================
+# Docker / Local volumes
+# =========================
+.docker/
+docker-data/
+postgres-data/
+mongo-data/
+pgadmin-data/
+
+# =========================
+# Uploads / User files
+# =========================
+uploads/
+backend/uploads/
+frontend/public/uploads/
+
+# =========================
+# Reports / Generated files
+# =========================
+reports/
+screenshots/
+playwright-report/
+test-results/
+
+# =========================
+# Misc
+# =========================
+.cache/
+tmp/
+temp/
