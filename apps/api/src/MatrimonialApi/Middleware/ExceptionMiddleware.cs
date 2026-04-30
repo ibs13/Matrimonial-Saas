@@ -11,6 +11,14 @@ public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddlewa
         {
             await next(context);
         }
+        catch (KeyNotFoundException ex)
+        {
+            await WriteError(context, HttpStatusCode.NotFound, ex.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            await WriteError(context, HttpStatusCode.BadRequest, ex.Message);
+        }
         catch (InvalidOperationException ex)
         {
             await WriteError(context, HttpStatusCode.Conflict, ex.Message);

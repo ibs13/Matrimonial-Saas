@@ -1,6 +1,6 @@
-namespace MatrimonialApi.Models.Mongo.Enums;
+namespace MatrimonialApi.Models.Enums;
 
-public enum ProfileStatus { Draft, Active, Paused, Deleted }
+public enum ProfileStatus { Draft, PendingReview, Active, Paused, Deleted }
 
 public enum Gender { Male, Female }
 

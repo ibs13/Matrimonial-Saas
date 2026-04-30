@@ -1,27 +1,21 @@
-using MatrimonialApi.Models.Mongo.Enums;
+using MatrimonialApi.Models.Enums;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace MatrimonialApi.Models.Mongo;
 
-/// <summary>
-/// Root MongoDB document for a matrimonial profile.
-/// The document Id equals the User.Id in PostgreSQL — no separate FK field needed.
-/// </summary>
 public class Profile
 {
     [BsonId]
     [BsonRepresentation(BsonType.String)]
     public Guid Id { get; set; }
 
-    // ── Status & Visibility ───────────────────────────────────────────────────
     public ProfileStatus Status { get; set; } = ProfileStatus.Draft;
     public ProfileVisibility Visibility { get; set; } = new();
 
-    /// <summary>0–100. Recalculated on every profile save.</summary>
+    /// <summary>0–100. Recalculated on every save.</summary>
     public int CompletionPercentage { get; set; } = 0;
 
-    // ── Profile Sections ──────────────────────────────────────────────────────
     public BasicInfo? Basic { get; set; }
     public PhysicalInfo? Physical { get; set; }
     public EducationInfo? Education { get; set; }
@@ -30,12 +24,11 @@ public class Profile
     public ReligionInfo? Religion { get; set; }
     public LifestyleInfo? Lifestyle { get; set; }
     public PartnerExpectations? PartnerExpectations { get; set; }
-    public List<ProfilePhoto> Photos { get; set; } = new();
+    public List<ProfilePhoto> Photos { get; set; } = [];
 
-    /// <summary>Contact details — all fields hidden by default per privacy rules.</summary>
+    /// <summary>All contact fields are hidden by default per privacy rules.</summary>
     public ContactInfo? Contact { get; set; }
 
-    // ── Timestamps ────────────────────────────────────────────────────────────
     [BsonRepresentation(BsonType.DateTime)]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
@@ -46,40 +39,37 @@ public class Profile
     public DateTime? LastActiveAt { get; set; }
 }
 
-// ── Visibility ────────────────────────────────────────────────────────────────
-
 public class ProfileVisibility
 {
-    /// <summary>Full legal name — shown only after connection is accepted.</summary>
+    /// <summary>Full legal name — hidden until connection is accepted.</summary>
     public bool ShowFullName { get; set; } = false;
 
-    /// <summary>Phone numbers — shown only after connection is accepted.</summary>
+    /// <summary>Phone numbers — hidden until connection is accepted.</summary>
     public bool ShowPhone { get; set; } = false;
 
-    /// <summary>Home address — shown only after connection is accepted.</summary>
+    /// <summary>Home address — hidden until connection is accepted.</summary>
     public bool ShowAddress { get; set; } = false;
 
-    /// <summary>Whether profile appears in search results.</summary>
+    /// <summary>Whether this profile appears in search results.</summary>
     public bool ProfileVisible { get; set; } = true;
 }
 
-// ── Basic Info ────────────────────────────────────────────────────────────────
-
 public class BasicInfo
 {
-    /// <summary>Shown publicly (e.g. "Sabbir M." or nickname). Required.</summary>
+    /// <summary>Shown publicly (first name or nickname). Required.</summary>
     public string DisplayName { get; set; } = string.Empty;
 
     /// <summary>Legal full name — hidden per visibility rules.</summary>
     public string? FullName { get; set; }
 
-    public Gender Gender { get; set; }
+    // Nullable so completion service can detect whether the user has set these
+    public Gender? Gender { get; set; }
 
     [BsonRepresentation(BsonType.DateTime)]
-    public DateTime DateOfBirth { get; set; }
+    public DateTime? DateOfBirth { get; set; }
 
-    public Religion Religion { get; set; }
-    public MaritalStatus MaritalStatus { get; set; }
+    public Religion? Religion { get; set; }
+    public MaritalStatus? MaritalStatus { get; set; }
     public string Nationality { get; set; } = "Bangladeshi";
     public string MotherTongue { get; set; } = "Bengali";
     public string CountryOfResidence { get; set; } = string.Empty;
@@ -90,8 +80,6 @@ public class BasicInfo
     public string? District { get; set; }
     public string? AboutMe { get; set; }
 }
-
-// ── Physical Info ─────────────────────────────────────────────────────────────
 
 public class PhysicalInfo
 {
@@ -111,33 +99,29 @@ public class PhysicalInfo
     public string? PhysicalDisabilityDetails { get; set; }
 }
 
-// ── Education ─────────────────────────────────────────────────────────────────
-
 public class EducationInfo
 {
-    public EducationLevel Level { get; set; }
+    // Nullable so completion service detects whether user has set this
+    public EducationLevel? Level { get; set; }
     public string? FieldOfStudy { get; set; }
     public string? Institution { get; set; }
     public int? GraduationYear { get; set; }
     public string? AdditionalQualifications { get; set; }
 }
 
-// ── Career ────────────────────────────────────────────────────────────────────
-
 public class CareerInfo
 {
-    public EmploymentType EmploymentType { get; set; }
+    // Nullable so completion service detects whether user has set this
+    public EmploymentType? EmploymentType { get; set; }
     public string? Occupation { get; set; }
     public string? Organization { get; set; }
 
-    /// <summary>Annual income in BDT (or specified currency).</summary>
+    /// <summary>Annual income in the specified currency (default BDT).</summary>
     public decimal? AnnualIncome { get; set; }
 
-    /// <summary>ISO 4217 currency code. Default BDT.</summary>
+    /// <summary>ISO 4217 currency code.</summary>
     public string IncomeCurrency { get; set; } = "BDT";
 }
-
-// ── Family ────────────────────────────────────────────────────────────────────
 
 public class FamilyInfo
 {
@@ -153,13 +137,9 @@ public class FamilyInfo
     public string? AboutFamily { get; set; }
 }
 
-// ── Religion ──────────────────────────────────────────────────────────────────
-
 public class ReligionInfo
 {
-    /// <summary>Islamic sect — only relevant when profile religion is Islam.</summary>
     public IslamicSect? Sect { get; set; }
-
     public PrayerHabit? PrayerHabit { get; set; }
 
     /// <summary>For female profiles.</summary>
@@ -171,51 +151,43 @@ public class ReligionInfo
     public string? Mazhab { get; set; }
 }
 
-// ── Lifestyle ─────────────────────────────────────────────────────────────────
-
 public class LifestyleInfo
 {
     public DietType? Diet { get; set; }
     public SmokingHabit? Smoking { get; set; }
-    public List<string> Hobbies { get; set; } = new();
+    public List<string> Hobbies { get; set; } = [];
 }
-
-// ── Partner Expectations ──────────────────────────────────────────────────────
 
 public class PartnerExpectations
 {
     public int? AgeMin { get; set; }
     public int? AgeMax { get; set; }
 
-    /// <summary>Minimum height in centimetres.</summary>
+    /// <summary>Minimum acceptable height in centimetres.</summary>
     public int? HeightMinCm { get; set; }
 
-    /// <summary>Maximum height in centimetres.</summary>
+    /// <summary>Maximum acceptable height in centimetres.</summary>
     public int? HeightMaxCm { get; set; }
 
     public EducationLevel? MinEducationLevel { get; set; }
-    public List<MaritalStatus> AcceptedMaritalStatuses { get; set; } = new();
-    public List<Religion> AcceptedReligions { get; set; } = new();
-    public List<string> PreferredCountries { get; set; } = new();
+    public List<MaritalStatus> AcceptedMaritalStatuses { get; set; } = [];
+    public List<Religion> AcceptedReligions { get; set; } = [];
+    public List<string> PreferredCountries { get; set; } = [];
     public FamilyStatus? MinFamilyStatus { get; set; }
     public string? AdditionalExpectations { get; set; }
 }
-
-// ── Photos ────────────────────────────────────────────────────────────────────
 
 public class ProfilePhoto
 {
     public string Url { get; set; } = string.Empty;
     public bool IsProfilePhoto { get; set; } = false;
 
-    /// <summary>If false, photo is visible only to accepted connections.</summary>
+    /// <summary>If false, visible only to accepted connections.</summary>
     public bool IsPublic { get; set; } = false;
 
     [BsonRepresentation(BsonType.DateTime)]
     public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
 }
-
-// ── Contact (all hidden by default) ──────────────────────────────────────────
 
 public class ContactInfo
 {
