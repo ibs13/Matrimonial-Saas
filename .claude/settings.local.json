@@ -3,7 +3,8 @@
     "allow": [
       "Bash(dotnet build *)",
       "Bash(dotnet add *)",
-      "Bash(dotnet ef *)"
+      "Bash(dotnet ef *)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx|json\\)$\")"
     ]
   }
 }

@@ -10,6 +10,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<ProfileIndex> ProfileIndexes => Set<ProfileIndex>();
     public DbSet<InterestRequest> InterestRequests => Set<InterestRequest>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -106,6 +107,23 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             entity.HasIndex(r => new { r.ReceiverId, r.Status, r.SentAt })
                   .HasDatabaseName("IX_InterestRequests_Received");
+        });
+
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.HasKey(l => l.Id);
+            entity.Property(l => l.AdminEmail).HasMaxLength(256).IsRequired();
+            entity.Property(l => l.Action).HasMaxLength(64).IsRequired();
+            entity.Property(l => l.EntityType).HasMaxLength(32).IsRequired();
+            entity.Property(l => l.Reason).HasMaxLength(500);
+
+            // No FK to Users — admin records persist even if the admin account is deleted
+            entity.HasIndex(l => new { l.AdminId, l.CreatedAt })
+                  .HasDatabaseName("IX_AuditLogs_AdminId");
+            entity.HasIndex(l => new { l.EntityId, l.CreatedAt })
+                  .HasDatabaseName("IX_AuditLogs_EntityId");
+            entity.HasIndex(l => new { l.Action, l.CreatedAt })
+                  .HasDatabaseName("IX_AuditLogs_Action");
         });
     }
 }

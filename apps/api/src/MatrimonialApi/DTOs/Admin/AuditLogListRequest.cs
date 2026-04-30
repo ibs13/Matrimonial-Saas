@@ -1,0 +1,17 @@
+using System.ComponentModel.DataAnnotations;
+
+namespace MatrimonialApi.DTOs.Admin;
+
+public class AuditLogListRequest
+{
+    /// <summary>Filter by action type: ApproveProfile, RejectProfile, SuspendProfile</summary>
+    public string? Action { get; set; }
+    public Guid? AdminId { get; set; }
+    public Guid? EntityId { get; set; }
+
+    [Range(1, int.MaxValue)]
+    public int Page { get; set; } = 1;
+
+    [Range(1, 100)]
+    public int PageSize { get; set; } = 20;
+}
