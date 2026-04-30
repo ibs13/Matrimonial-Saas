@@ -1,0 +1,16 @@
+# Local development overrides — not committed with sensitive values
+version: "3.9"
+
+services:
+  api:
+    volumes:
+      - ./apps/api:/app
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+  web:
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
