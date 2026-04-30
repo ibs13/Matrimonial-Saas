@@ -35,29 +35,40 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             entity.HasKey(p => p.Id);
 
-            // FK to User — 1:1, cascades on user delete
             entity.HasOne<User>()
                   .WithOne()
                   .HasForeignKey<ProfileIndex>(p => p.Id)
                   .OnDelete(DeleteBehavior.Cascade);
 
+            // String column lengths
+            entity.Property(p => p.DisplayName).HasMaxLength(60);
             entity.Property(p => p.Status).HasMaxLength(32).IsRequired();
             entity.Property(p => p.Gender).HasMaxLength(16);
             entity.Property(p => p.Religion).HasMaxLength(32);
             entity.Property(p => p.MaritalStatus).HasMaxLength(32);
             entity.Property(p => p.CountryOfResidence).HasMaxLength(60);
             entity.Property(p => p.Division).HasMaxLength(60);
+            entity.Property(p => p.District).HasMaxLength(60);
             entity.Property(p => p.EducationLevel).HasMaxLength(32);
             entity.Property(p => p.EmploymentType).HasMaxLength(32);
 
-            // Composite index for the most common search: status + gender + religion
-            entity.HasIndex(p => new { p.Status, p.Gender, p.Religion })
+            // ── Indexes ───────────────────────────────────────────────────────
+
+            // Primary search index: every active-profile query starts with these three
+            entity.HasIndex(p => new { p.Status, p.ProfileVisible, p.Gender, p.Religion })
                   .HasDatabaseName("IX_ProfileIndex_Search_Core");
 
-            // Range filter indexes
+            // Location drill-down
+            entity.HasIndex(p => new { p.CountryOfResidence, p.Division, p.District })
+                  .HasDatabaseName("IX_ProfileIndex_Location");
+
+            // Range filter indexes (B-tree, supports < / > / BETWEEN)
             entity.HasIndex(p => p.AgeYears).HasDatabaseName("IX_ProfileIndex_Age");
             entity.HasIndex(p => p.HeightCm).HasDatabaseName("IX_ProfileIndex_Height");
-            entity.HasIndex(p => p.CountryOfResidence).HasDatabaseName("IX_ProfileIndex_Country");
+            entity.HasIndex(p => p.EducationLevelOrder).HasDatabaseName("IX_ProfileIndex_EducationOrder");
+
+            // Sort indexes
+            entity.HasIndex(p => p.LastActiveAt).HasDatabaseName("IX_ProfileIndex_LastActive");
             entity.HasIndex(p => p.UpdatedAt).HasDatabaseName("IX_ProfileIndex_UpdatedAt");
         });
     }

@@ -20,6 +20,7 @@ builder.Services.AddSingleton<MongoDbContext>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ProfileService>();
+builder.Services.AddScoped<SearchService>();
 
 // ── JWT Authentication ────────────────────────────────────────────────────────
 var jwtSecret = builder.Configuration["Jwt:Secret"]

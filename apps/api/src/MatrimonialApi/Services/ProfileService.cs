@@ -280,16 +280,21 @@ public class ProfileService(AppDbContext pgDb, MongoDbContext mongoDb)
         }
         else
         {
+            existing.DisplayName = profile.Basic?.DisplayName;
             existing.Gender = profile.Basic?.Gender?.ToString();
             existing.Religion = profile.Basic?.Religion?.ToString();
             existing.MaritalStatus = profile.Basic?.MaritalStatus?.ToString();
             existing.CountryOfResidence = profile.Basic?.CountryOfResidence;
             existing.Division = profile.Basic?.Division;
+            existing.District = profile.Basic?.District;
             existing.AgeYears = ageYears;
             existing.HeightCm = profile.Physical?.HeightCm;
             existing.EducationLevel = profile.Education?.Level?.ToString();
+            existing.EducationLevelOrder = profile.Education?.Level.HasValue == true
+                ? (int)profile.Education.Level.Value : (int?)null;
             existing.EmploymentType = profile.Career?.EmploymentType?.ToString();
             existing.Status = profile.Status.ToString();
+            existing.ProfileVisible = profile.Visibility.ProfileVisible;
             existing.CompletionPercentage = profile.CompletionPercentage;
             existing.LastActiveAt = profile.LastActiveAt;
             existing.UpdatedAt = profile.UpdatedAt;
@@ -301,16 +306,21 @@ public class ProfileService(AppDbContext pgDb, MongoDbContext mongoDb)
     private static ProfileIndex BuildIndex(Profile profile, int? ageYears) => new()
     {
         Id = profile.Id,
+        DisplayName = profile.Basic?.DisplayName,
         Gender = profile.Basic?.Gender?.ToString(),
         Religion = profile.Basic?.Religion?.ToString(),
         MaritalStatus = profile.Basic?.MaritalStatus?.ToString(),
         CountryOfResidence = profile.Basic?.CountryOfResidence,
         Division = profile.Basic?.Division,
+        District = profile.Basic?.District,
         AgeYears = ageYears,
         HeightCm = profile.Physical?.HeightCm,
         EducationLevel = profile.Education?.Level?.ToString(),
+        EducationLevelOrder = profile.Education?.Level.HasValue == true
+            ? (int)profile.Education.Level.Value : (int?)null,
         EmploymentType = profile.Career?.EmploymentType?.ToString(),
         Status = profile.Status.ToString(),
+        ProfileVisible = profile.Visibility.ProfileVisible,
         CompletionPercentage = profile.CompletionPercentage,
         LastActiveAt = profile.LastActiveAt,
         UpdatedAt = profile.UpdatedAt,
