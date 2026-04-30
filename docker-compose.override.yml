@@ -1,16 +1,9 @@
-# Local development overrides — not committed with sensitive values
-version: "3.9"
-
-services:
-  api:
-    volumes:
-      - ./apps/api:/app
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-
-  web:
-    volumes:
-      - ./apps/web:/app
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
+# docker-compose.override.yml
+# Automatically merged with docker-compose.yml when running `docker-compose up`.
+# Safe to leave empty — add per-developer overrides here (never commit secrets).
+#
+# Example: enable verbose API logging locally
+# services:
+#   api:
+#     environment:
+#       Logging__LogLevel__Default: Debug

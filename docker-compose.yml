@@ -1,47 +1,29 @@
-version: "3.9"
+# Local development stack
+# Copy .env.example → .env and fill in the secrets before running.
+# Usage: docker-compose up --build
 
 services:
-  api:
-    build:
-      context: .
-      dockerfile: infra/docker/api.Dockerfile
-    ports:
-      - "5000:8080"
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING}
-      - ConnectionStrings__MongoDB=${MONGODB_CONNECTION_STRING}
-    depends_on:
-      - postgres
-      - mongo
-    networks:
-      - matrimonial-net
 
-  web:
-    build:
-      context: .
-      dockerfile: infra/docker/web.Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:5000
-    depends_on:
-      - api
-    networks:
-      - matrimonial-net
+  # ── Databases ────────────────────────────────────────────────────────────────
 
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB:       ${POSTGRES_DB}
+      POSTGRES_USER:     ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./infra/db/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./infra/db/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - matrimonial-net
 
@@ -51,25 +33,120 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
-      MONGO_INITDB_DATABASE: ${MONGO_DB}
+      MONGO_INITDB_DATABASE:      ${MONGO_DB}
     volumes:
       - mongo_data:/data/db
     ports:
       - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "--quiet"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     networks:
       - matrimonial-net
 
-  adminer:
-    image: adminer
+  # ── Application services ─────────────────────────────────────────────────────
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "5000:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS:        http://+:8080
+
+      # EF Core / PostgreSQL
+      ConnectionStrings__Postgres: ${POSTGRES_CONNECTION_STRING}
+
+      # MongoDB (maps to MongoDB:ConnectionString and MongoDB:Database in appsettings)
+      MongoDB__ConnectionString: ${MONGODB_CONNECTION_STRING}
+      MongoDB__Database:         ${MONGO_DB}
+
+      # JWT
+      Jwt__Secret:             ${JWT_SECRET}
+      Jwt__Issuer:             ${JWT_ISSUER:-matrimonial-api}
+      Jwt__Audience:           ${JWT_AUDIENCE:-matrimonial-client}
+      Jwt__AccessTokenMinutes: ${JWT_EXPIRY_MINUTES:-60}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      # curl is installed in the api.Dockerfile runtime stage
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
     networks:
       - matrimonial-net
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+      args:
+        # Inlined into the JS bundle at build time — must point to the host
+        # machine port the browser will call, NOT the internal Docker hostname.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000}
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_started
+    networks:
+      - matrimonial-net
+
+  # ── Admin UIs ────────────────────────────────────────────────────────────────
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL:    ${PGADMIN_EMAIL:-admin@matrimonial.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - matrimonial-net
+
+  mongo-express:
+    image: mongo-express:latest
+    restart: unless-stopped
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_USER}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_PASSWORD}
+      ME_CONFIG_MONGODB_URL:           mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/
+      ME_CONFIG_BASICAUTH_USERNAME:    ${ME_BASICAUTH_USERNAME:-admin}
+      ME_CONFIG_BASICAUTH_PASSWORD:    ${ME_BASICAUTH_PASSWORD:-admin}
+    ports:
+      - "8081:8081"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - matrimonial-net
+
+# ── Persistent volumes ────────────────────────────────────────────────────────
 
 volumes:
   postgres_data:
   mongo_data:
+  pgadmin_data:
+
+# ── Networks ──────────────────────────────────────────────────────────────────
 
 networks:
   matrimonial-net:
