@@ -4,7 +4,9 @@
       "Bash(dotnet build *)",
       "Bash(dotnet add *)",
       "Bash(dotnet ef *)",
-      "Bash(grep -E \"\\\\.\\(ts|tsx|json\\)$\")"
+      "Bash(grep -E \"\\\\.\\(ts|tsx|json\\)$\")",
+      "Bash(npm install *)",
+      "Bash(npm run *)"
     ]
   }
 }

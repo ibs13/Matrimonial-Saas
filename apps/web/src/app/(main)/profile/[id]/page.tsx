@@ -1,0 +1,154 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { interestApi } from '@/lib/api';
+import { enumLabel, timeAgo, apiError } from '@/lib/utils';
+import Spinner from '@/components/ui/Spinner';
+import type { SearchResultItem } from '@/types';
+
+export default function ProfileDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const [profile, setProfile] = useState<SearchResultItem | null>(null);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const cached = sessionStorage.getItem(`profile_${id}`);
+    if (cached) {
+      try {
+        setProfile(JSON.parse(cached));
+      } catch {
+        router.replace('/search');
+      }
+    } else {
+      router.replace('/search');
+    }
+  }, [id, router]);
+
+  const handleSendInterest = async () => {
+    setSending(true);
+    setError('');
+    try {
+      await interestApi.send({ receiverId: id, message: message.trim() || undefined });
+      setSent(true);
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (!profile) {
+    return (
+      <div className="flex justify-center py-16">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-5">
+      <button onClick={() => router.back()} className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+        ← Back to search
+      </button>
+
+      {/* Profile header */}
+      <div className="card">
+        <div className="flex items-start gap-4">
+          <div className="w-20 h-20 rounded-full bg-primary-100 text-primary-600 font-bold text-3xl flex items-center justify-center flex-shrink-0">
+            {profile.displayName?.[0]?.toUpperCase() ?? '?'}
+          </div>
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold text-gray-900">{profile.displayName}</h1>
+            <p className="text-gray-500 mt-1">
+              {[
+                profile.gender,
+                profile.ageYears ? `${profile.ageYears} years` : null,
+                profile.maritalStatus ? enumLabel(profile.maritalStatus) : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+            {profile.lastActiveAt && (
+              <p className="text-xs text-gray-400 mt-1">Active {timeAgo(profile.lastActiveAt)}</p>
+            )}
+
+            {/* Completion */}
+            <div className="mt-3 flex items-center gap-2">
+              <div className="flex-1 h-2 bg-gray-100 rounded-full max-w-[160px]">
+                <div
+                  className="h-2 bg-primary-400 rounded-full"
+                  style={{ width: `${profile.completionPercentage}%` }}
+                />
+              </div>
+              <span className="text-xs text-gray-500">{profile.completionPercentage}% complete</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Details */}
+      <div className="card">
+        <h2 className="font-semibold text-gray-900 mb-4">Profile Details</h2>
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
+          <Field label="Religion" value={profile.religion} />
+          <Field label="Education" value={profile.educationLevel ? enumLabel(profile.educationLevel) : undefined} />
+          <Field label="Employment" value={profile.employmentType ? enumLabel(profile.employmentType) : undefined} />
+          <Field label="Height" value={profile.heightCm ? `${profile.heightCm} cm` : undefined} />
+          <Field label="Country" value={profile.countryOfResidence} />
+          <Field label="Division" value={profile.division} />
+          {profile.district && <Field label="District" value={profile.district} />}
+        </dl>
+      </div>
+
+      {/* Send Interest */}
+      <div className="card">
+        <h2 className="font-semibold text-gray-900 mb-4">Send Interest</h2>
+        {sent ? (
+          <div className="flex items-center gap-3 text-green-700 bg-green-50 rounded-lg px-4 py-3">
+            <span className="text-xl">✅</span>
+            <p>Interest sent! They will be notified.</p>
+          </div>
+        ) : (
+          <>
+            <div className="mb-4">
+              <label className="label">Personal message <span className="text-gray-400 font-normal">(optional)</span></label>
+              <textarea
+                className="input h-24 resize-none"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                maxLength={300}
+                placeholder="Introduce yourself or share why you're interested…"
+              />
+              <p className="text-xs text-gray-400 mt-1 text-right">{message.length}/300</p>
+            </div>
+            {error && (
+              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-3">{error}</p>
+            )}
+            <button
+              onClick={handleSendInterest}
+              disabled={sending}
+              className="btn-primary"
+            >
+              {sending ? 'Sending…' : 'Send Interest'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value?: string }) {
+  if (!value) return null;
+  return (
+    <div>
+      <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</dt>
+      <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
+    </div>
+  );
+}
