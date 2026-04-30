@@ -1,4 +1,5 @@
 using MatrimonialApi.Models;
+using MatrimonialApi.Models.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace MatrimonialApi.Data;
@@ -8,6 +9,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<ProfileIndex> ProfileIndexes => Set<ProfileIndex>();
+    public DbSet<InterestRequest> InterestRequests => Set<InterestRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -70,6 +72,40 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             // Sort indexes
             entity.HasIndex(p => p.LastActiveAt).HasDatabaseName("IX_ProfileIndex_LastActive");
             entity.HasIndex(p => p.UpdatedAt).HasDatabaseName("IX_ProfileIndex_UpdatedAt");
+        });
+
+        modelBuilder.Entity<InterestRequest>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+
+            // Two FKs to User — restrict delete so user deletion doesn't silently wipe history
+            entity.HasOne(r => r.Sender)
+                  .WithMany()
+                  .HasForeignKey(r => r.SenderId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(r => r.Receiver)
+                  .WithMany()
+                  .HasForeignKey(r => r.ReceiverId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(r => r.Status)
+                  .HasConversion<string>()
+                  .HasMaxLength(32)
+                  .IsRequired();
+
+            entity.Property(r => r.Message).HasMaxLength(300);
+
+            // Duplicate check: look up any request between two users in either direction
+            entity.HasIndex(r => new { r.SenderId, r.ReceiverId })
+                  .HasDatabaseName("IX_InterestRequests_Pair");
+
+            // Efficient list queries filtered by status
+            entity.HasIndex(r => new { r.SenderId, r.Status, r.SentAt })
+                  .HasDatabaseName("IX_InterestRequests_Sent");
+
+            entity.HasIndex(r => new { r.ReceiverId, r.Status, r.SentAt })
+                  .HasDatabaseName("IX_InterestRequests_Received");
         });
     }
 }
