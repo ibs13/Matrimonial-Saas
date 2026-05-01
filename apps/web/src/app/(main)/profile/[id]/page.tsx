@@ -2,10 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { interestApi } from '@/lib/api';
+import { interestApi, reportApi } from '@/lib/api';
 import { enumLabel, timeAgo, apiError } from '@/lib/utils';
 import Spinner from '@/components/ui/Spinner';
-import type { SearchResultItem } from '@/types';
+import type { SearchResultItem, ReportReason } from '@/types';
+
+const REPORT_REASONS: { value: ReportReason; label: string }[] = [
+  { value: 'Fake', label: 'Fake profile / stolen identity' },
+  { value: 'Inappropriate', label: 'Inappropriate content' },
+  { value: 'Scam', label: 'Scam or fraud' },
+  { value: 'Harassment', label: 'Harassment' },
+  { value: 'Other', label: 'Other' },
+];
 
 export default function ProfileDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +23,13 @@ export default function ProfileDetailPage() {
   const [sent, setSent] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  const [showReportForm, setShowReportForm] = useState(false);
+  const [reportReason, setReportReason] = useState<ReportReason>('Fake');
+  const [reportDescription, setReportDescription] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportDone, setReportDone] = useState(false);
+  const [reportError, setReportError] = useState('');
 
   useEffect(() => {
     const cached = sessionStorage.getItem(`profile_${id}`);
@@ -28,6 +43,20 @@ export default function ProfileDetailPage() {
       router.replace('/search');
     }
   }, [id, router]);
+
+  const handleSubmitReport = async () => {
+    setReportSubmitting(true);
+    setReportError('');
+    try {
+      await reportApi.submit(id, { reason: reportReason, description: reportDescription.trim() || undefined });
+      setReportDone(true);
+      setShowReportForm(false);
+    } catch (err) {
+      setReportError(apiError(err));
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
 
   const handleSendInterest = async () => {
     setSending(true);
@@ -137,6 +166,72 @@ export default function ProfileDetailPage() {
               {sending ? 'Sending…' : 'Send Interest'}
             </button>
           </>
+        )}
+      </div>
+
+      {/* Report Profile */}
+      <div className="card">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-gray-900">Report Profile</h2>
+          {!reportDone && !showReportForm && (
+            <button
+              onClick={() => setShowReportForm(true)}
+              className="text-xs text-gray-500 hover:text-red-600 underline underline-offset-2"
+            >
+              Report this profile
+            </button>
+          )}
+        </div>
+
+        {reportDone && (
+          <p className="mt-3 text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2">
+            Report submitted. Our team will review it.
+          </p>
+        )}
+
+        {showReportForm && !reportDone && (
+          <div className="mt-4 space-y-4">
+            <div>
+              <label className="label">Reason</label>
+              <select
+                className="input"
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value as ReportReason)}
+              >
+                {REPORT_REASONS.map((r) => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Additional details <span className="text-gray-400 font-normal">(optional)</span></label>
+              <textarea
+                className="input h-20 resize-none"
+                value={reportDescription}
+                onChange={(e) => setReportDescription(e.target.value)}
+                maxLength={500}
+                placeholder="Provide any additional context…"
+              />
+            </div>
+            {reportError && (
+              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{reportError}</p>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={handleSubmitReport}
+                disabled={reportSubmitting}
+                className="btn-danger text-sm"
+              >
+                {reportSubmitting ? 'Submitting…' : 'Submit Report'}
+              </button>
+              <button
+                onClick={() => { setShowReportForm(false); setReportError(''); }}
+                className="btn-secondary text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>

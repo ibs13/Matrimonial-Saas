@@ -6,9 +6,9 @@ import { adminApi } from '@/lib/api';
 import { formatDate, enumLabel, apiError } from '@/lib/utils';
 import Spinner from '@/components/ui/Spinner';
 import Modal from '@/components/ui/Modal';
-import type { PendingProfileItem, AdminProfileDetailResponse, AuditLogItem, AdminActionResponse } from '@/types';
+import type { PendingProfileItem, AdminProfileDetailResponse, AuditLogItem, AdminActionResponse, ReportItem } from '@/types';
 
-type Tab = 'pending' | 'auditLogs';
+type Tab = 'pending' | 'reports' | 'auditLogs';
 
 export default function AdminProfilesPage() {
   const [tab, setTab] = useState<Tab>('pending');
@@ -29,7 +29,13 @@ export default function AdminProfilesPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const [modal, setModal] = useState<{ type: 'reject' | 'suspend'; id: string } | null>(null);
+  const [reports, setReports] = useState<ReportItem[]>([]);
+  const [reportTotal, setReportTotal] = useState(0);
+  const [reportPage, setReportPage] = useState(1);
+  const [reportPages, setReportPages] = useState(1);
+  const [loadingReports, setLoadingReports] = useState(false);
+
+  const [modal, setModal] = useState<{ type: 'reject' | 'suspend' | 'suspendReport'; id: string } | null>(null);
   const [actioning, setActioning] = useState(false);
   const [actionError, setActionError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
@@ -43,6 +49,18 @@ export default function AdminProfilesPage() {
       setPendingPages(Math.ceil(res.totalCount / 15));
     } finally {
       setLoadingPending(false);
+    }
+  }, []);
+
+  const loadReports = useCallback(async (p: number) => {
+    setLoadingReports(true);
+    try {
+      const res = await adminApi.getReports({ page: p, pageSize: 20, status: 'Active' });
+      setReports(res.items);
+      setReportTotal(res.totalCount);
+      setReportPages(Math.ceil(res.totalCount / 20));
+    } finally {
+      setLoadingReports(false);
     }
   }, []);
 
@@ -61,6 +79,10 @@ export default function AdminProfilesPage() {
   useEffect(() => {
     loadPending(1);
   }, [loadPending]);
+
+  useEffect(() => {
+    if (tab === 'reports') loadReports(reportPage);
+  }, [tab, reportPage, loadReports]);
 
   useEffect(() => {
     if (tab === 'auditLogs') loadAudit(auditPage, auditEntityFilter || undefined);
@@ -123,15 +145,36 @@ export default function AdminProfilesPage() {
     setActionError('');
     setActionSuccess('');
     try {
-      await adminApi.suspendProfile(modal.id, reason);
-      setModal(null);
-      await loadPending(pendingPage);
-      if (selectedId === modal.id) setSelectedId(null);
-      setActionSuccess('Profile suspended.');
+      if (modal.type === 'suspendReport') {
+        await adminApi.suspendFromReport(modal.id, reason);
+        setModal(null);
+        await loadReports(reportPage);
+        setActionSuccess('Profile suspended and report dismissed.');
+      } else {
+        await adminApi.suspendProfile(modal.id, reason);
+        setModal(null);
+        await loadPending(pendingPage);
+        if (selectedId === modal.id) setSelectedId(null);
+        setActionSuccess('Profile suspended.');
+      }
     } catch (err) {
       setActionError(apiError(err));
     } finally {
       setActioning(false);
+    }
+  };
+
+  const handleDismissReport = async (id: string) => {
+    if (!confirm('Dismiss this report?')) return;
+    setActionError('');
+    setActionSuccess('');
+    try {
+      await adminApi.dismissReport(id);
+      setReports((prev) => prev.filter((r) => r.id !== id));
+      setReportTotal((t) => t - 1);
+      setActionSuccess('Report dismissed.');
+    } catch (err) {
+      setActionError(apiError(err));
     }
   };
 
@@ -157,7 +200,7 @@ export default function AdminProfilesPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200">
-        {(['pending', 'auditLogs'] as Tab[]).map((t) => (
+        {(['pending', 'reports', 'auditLogs'] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -167,7 +210,11 @@ export default function AdminProfilesPage() {
                 : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
           >
-            {t === 'pending' ? `Pending (${pendingTotal})` : 'Audit Logs'}
+            {t === 'pending'
+              ? `Pending (${pendingTotal})`
+              : t === 'reports'
+              ? `Reports${reportTotal > 0 ? ` (${reportTotal})` : ''}`
+              : 'Audit Logs'}
           </button>
         ))}
       </div>
@@ -257,6 +304,47 @@ export default function AdminProfilesPage() {
         </div>
       )}
 
+      {/* ── REPORTS TAB ── */}
+      {tab === 'reports' && (
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">{reportTotal} active report{reportTotal !== 1 ? 's' : ''}</p>
+
+          {loadingReports ? (
+            <div className="flex justify-center py-8"><Spinner /></div>
+          ) : reports.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <p className="text-3xl mb-2">✅</p>
+              <p>No active reports</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {reports.map((r) => (
+                <ReportRow
+                  key={r.id}
+                  report={r}
+                  onDismiss={() => handleDismissReport(r.id)}
+                  onSuspend={() => setModal({ type: 'suspendReport', id: r.id })}
+                />
+              ))}
+            </div>
+          )}
+
+          {reportPages > 1 && (
+            <div className="flex gap-2">
+              {Array.from({ length: Math.min(reportPages, 10) }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => { setReportPage(p); loadReports(p); }}
+                  className={`w-9 h-9 rounded-lg text-sm ${p === reportPage ? 'bg-primary-600 text-white' : 'bg-white border border-gray-200 text-gray-700'}`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── AUDIT LOGS TAB ── */}
       {tab === 'auditLogs' && (
         <div className="space-y-4">
@@ -328,7 +416,7 @@ export default function AdminProfilesPage() {
       />
       <Modal
         title="Suspend Profile"
-        isOpen={modal?.type === 'suspend'}
+        isOpen={modal?.type === 'suspend' || modal?.type === 'suspendReport'}
         onClose={() => setModal(null)}
         onConfirm={handleSuspendConfirm}
         confirmLabel="Suspend"
@@ -463,6 +551,40 @@ function DetailGrid({ items }: { items: [string, string | null | undefined][] })
         </div>
       ))}
     </dl>
+  );
+}
+
+function ReportRow({
+  report,
+  onDismiss,
+  onSuspend,
+}: {
+  report: ReportItem;
+  onDismiss: () => void;
+  onSuspend: () => void;
+}) {
+  return (
+    <div className="card flex items-start gap-4 py-3 px-4">
+      <span className="badge flex-shrink-0 mt-0.5 bg-red-100 text-red-800">{report.reason}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-900 truncate">
+          {report.reportedDisplayName || 'Unknown profile'}
+        </p>
+        <p className="text-xs text-gray-400 font-mono">{report.reportedUserId}</p>
+        {report.description && (
+          <p className="text-xs text-gray-600 mt-0.5 italic">&ldquo;{report.description}&rdquo;</p>
+        )}
+        <p className="text-xs text-gray-400 mt-0.5">{formatDate(report.createdAt)}</p>
+      </div>
+      <div className="flex gap-2 flex-shrink-0">
+        <button onClick={onDismiss} className="btn-secondary text-xs py-1 px-2.5">
+          Dismiss
+        </button>
+        <button onClick={onSuspend} className="btn-danger text-xs py-1 px-2.5">
+          Suspend
+        </button>
+      </div>
+    </div>
   );
 }
 

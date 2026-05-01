@@ -12,6 +12,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<InterestRequest> InterestRequests => Set<InterestRequest>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<SavedProfile> SavedProfiles => Set<SavedProfile>();
+    public DbSet<ProfileReport> ProfileReports => Set<ProfileReport>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -130,6 +131,41 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             entity.HasIndex(s => new { s.UserId, s.SavedAt })
                   .HasDatabaseName("IX_SavedProfiles_User");
+        });
+
+        modelBuilder.Entity<ProfileReport>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+
+            entity.HasOne(r => r.Reporter)
+                  .WithMany()
+                  .HasForeignKey(r => r.ReporterId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(r => r.ReportedUser)
+                  .WithMany()
+                  .HasForeignKey(r => r.ReportedUserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(r => r.Reason)
+                  .HasConversion<string>()
+                  .HasMaxLength(32)
+                  .IsRequired();
+
+            entity.Property(r => r.Status).HasMaxLength(16).IsRequired();
+            entity.Property(r => r.Description).HasMaxLength(500);
+
+            // Efficient admin queue query: active reports ordered by time
+            entity.HasIndex(r => new { r.Status, r.CreatedAt })
+                  .HasDatabaseName("IX_ProfileReports_Status");
+
+            // Lookup by reported user (e.g. "how many reports does this profile have?")
+            entity.HasIndex(r => new { r.ReportedUserId, r.Status })
+                  .HasDatabaseName("IX_ProfileReports_Reported");
+
+            // Duplicate check: one active report per reporter per profile
+            entity.HasIndex(r => new { r.ReporterId, r.ReportedUserId })
+                  .HasDatabaseName("IX_ProfileReports_Reporter");
         });
 
         modelBuilder.Entity<AuditLog>(entity =>

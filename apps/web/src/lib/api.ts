@@ -18,6 +18,9 @@ import type {
   SendInterestRequest,
   InterestRequestResponse,
   InterestListResponse,
+  SubmitReportRequest,
+  ReportResponse,
+  ReportListResponse,
   SavedProfileResponse,
   PendingProfilesResponse,
   AdminProfileDetailResponse,
@@ -218,6 +221,15 @@ export const interestApi = {
       .then((r) => r.data),
 };
 
+// ── Reports ───────────────────────────────────────────────────────────────────
+
+export const reportApi = {
+  submit: (profileUserId: string, data: SubmitReportRequest) =>
+    http
+      .post<ReportResponse>(`/api/reports/${profileUserId}`, data)
+      .then((r) => r.data),
+};
+
 // ── Saved Profiles ────────────────────────────────────────────────────────────
 
 export const savedApi = {
@@ -272,5 +284,18 @@ export const adminApi = {
   }) =>
     http
       .get<AuditLogListResponse>("/api/admin/audit-logs", { params })
+      .then((r) => r.data),
+
+  getReports: (params: { page?: number; pageSize?: number; status?: string }) =>
+    http
+      .get<ReportListResponse>("/api/admin/reports", { params })
+      .then((r) => r.data),
+
+  dismissReport: (id: string) =>
+    http.patch(`/api/admin/reports/${id}/dismiss`),
+
+  suspendFromReport: (id: string, reason: string) =>
+    http
+      .patch<AdminActionResponse>(`/api/admin/reports/${id}/suspend`, { reason })
       .then((r) => r.data),
 };

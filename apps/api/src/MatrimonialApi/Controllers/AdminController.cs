@@ -9,7 +9,7 @@ namespace MatrimonialApi.Controllers;
 [ApiController]
 [Route("api/admin")]
 [Authorize(Policy = "AdminOnly")]
-public class AdminController(AdminService adminService) : ControllerBase
+public class AdminController(AdminService adminService, ReportService reportService) : ControllerBase
 {
     private Guid CurrentAdminId =>
         Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -67,5 +67,35 @@ public class AdminController(AdminService adminService) : ControllerBase
     {
         var response = await adminService.GetAuditLogsAsync(request);
         return Ok(response);
+    }
+
+    // GET /api/admin/reports?status=Active&page=1&pageSize=20
+    [HttpGet("reports")]
+    public async Task<IActionResult> GetReports(
+        [FromQuery] string? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var response = await reportService.GetReportsAsync(page, pageSize, status);
+        return Ok(response);
+    }
+
+    // PATCH /api/admin/reports/{id}/dismiss
+    [HttpPatch("reports/{id:guid}/dismiss")]
+    public async Task<IActionResult> DismissReport(Guid id)
+    {
+        await reportService.DismissAsync(CurrentAdminId, CurrentAdminEmail, id);
+        return NoContent();
+    }
+
+    // PATCH /api/admin/reports/{id}/suspend — dismiss report + suspend the reported profile
+    [HttpPatch("reports/{id:guid}/suspend")]
+    public async Task<IActionResult> SuspendFromReport(Guid id, [FromBody] SuspendFromReportRequest request)
+    {
+        var reportedUserId = await reportService.GetReportedUserIdAsync(id);
+        var suspendResponse = await adminService.SuspendProfileAsync(
+            CurrentAdminId, CurrentAdminEmail, reportedUserId, request.Reason);
+        await reportService.DismissAsync(CurrentAdminId, CurrentAdminEmail, id);
+        return Ok(suspendResponse);
     }
 }

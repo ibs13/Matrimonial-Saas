@@ -42,6 +42,7 @@ builder.Services.AddScoped<SearchService>();
 builder.Services.AddScoped<InterestService>();
 builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<SavedProfileService>();
+builder.Services.AddScoped<ReportService>();
 
 // ── Health checks ─────────────────────────────────────────────────────────────
 builder.Services.AddHealthChecks()

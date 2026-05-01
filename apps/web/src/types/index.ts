@@ -233,6 +233,39 @@ export interface InterestListResponse {
   totalPages: number;
 }
 
+// ── Reports ───────────────────────────────────────────────────────────────────
+
+export type ReportReason = 'Fake' | 'Inappropriate' | 'Scam' | 'Harassment' | 'Other';
+
+export interface SubmitReportRequest {
+  reason: ReportReason;
+  description?: string;
+}
+
+export interface ReportResponse {
+  id: string;
+  reason: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface ReportItem {
+  id: string;
+  reportedUserId: string;
+  reportedDisplayName: string;
+  reason: string;
+  description?: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface ReportListResponse {
+  items: ReportItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
 // ── Saved Profiles ────────────────────────────────────────────────────────────
 
 export interface SavedProfileResponse {
