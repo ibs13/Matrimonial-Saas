@@ -6,6 +6,7 @@ using MatrimonialApi.Models.Enums;
 using MatrimonialApi.Models.Mongo;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Driver;
+using MongoDB.Driver.Linq;
 
 namespace MatrimonialApi.Services;
 
@@ -105,6 +106,107 @@ public class AdminService(AppDbContext pgDb, MongoDbContext mongoDb)
                 $"Profile cannot be suspended from status '{profile.Status}'.");
 
         return await ApplyStatusChangeAsync(adminId, adminEmail, profile, ProfileStatus.Paused, "SuspendProfile", reason);
+    }
+
+    // ── Pending photos ────────────────────────────────────────────────────────
+
+    public async Task<PendingPhotoListResponse> GetPendingPhotosAsync(int page, int pageSize)
+    {
+        var pendingStatus = PhotoStatus.Pending.ToString();
+
+        var filter = Builders<Profile>.Filter.ElemMatch(
+            p => p.Photos,
+            photo => photo.Status == PhotoStatus.Pending);
+
+        var totalCount = (int)await mongoDb.Profiles.CountDocumentsAsync(filter);
+
+        var profiles = await mongoDb.Profiles
+            .Find(filter)
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync();
+
+        var items = profiles
+            .Select(p =>
+            {
+                var photo = p.Photos.FirstOrDefault(ph => ph.Status == PhotoStatus.Pending);
+                return photo is null ? null : new PendingPhotoItem
+                {
+                    UserId = p.Id,
+                    DisplayName = p.Basic?.DisplayName ?? string.Empty,
+                    PhotoUrl = photo.Url,
+                    Visibility = photo.Visibility.ToString(),
+                    UploadedAt = photo.UploadedAt,
+                };
+            })
+            .Where(x => x is not null)
+            .Select(x => x!)
+            .ToList();
+
+        return new PendingPhotoListResponse
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize,
+        };
+    }
+
+    public async Task ApprovePhotoAsync(Guid adminId, string adminEmail, Guid profileUserId)
+    {
+        var profile = await GetMongoProfileOrThrowAsync(profileUserId);
+
+        var photo = profile.Photos.FirstOrDefault(ph => ph.Status == PhotoStatus.Pending)
+            ?? throw new InvalidOperationException("No pending photo found for this profile.");
+
+        photo.Status = PhotoStatus.Approved;
+        await mongoDb.Profiles.ReplaceOneAsync(p => p.Id == profileUserId, profile);
+
+        // Sync PhotoUrl to ProfileIndex if photo is Public
+        var index = await pgDb.ProfileIndexes.FindAsync(profileUserId);
+        if (index is not null)
+        {
+            index.PhotoUrl = photo.Visibility == PhotoVisibility.Public ? photo.Url : null;
+            pgDb.AuditLogs.Add(new AuditLog
+            {
+                AdminId = adminId,
+                AdminEmail = adminEmail,
+                Action = "ApprovePhoto",
+                EntityType = "ProfilePhoto",
+                EntityId = profileUserId,
+                CreatedAt = DateTime.UtcNow,
+            });
+            await pgDb.SaveChangesAsync();
+        }
+    }
+
+    public async Task RejectPhotoAsync(Guid adminId, string adminEmail, Guid profileUserId, string reason)
+    {
+        var profile = await GetMongoProfileOrThrowAsync(profileUserId);
+
+        var photo = profile.Photos.FirstOrDefault(ph => ph.Status == PhotoStatus.Pending)
+            ?? throw new InvalidOperationException("No pending photo found for this profile.");
+
+        photo.Status = PhotoStatus.Rejected;
+        await mongoDb.Profiles.ReplaceOneAsync(p => p.Id == profileUserId, profile);
+
+        // Clear any public photo URL from index
+        var index = await pgDb.ProfileIndexes.FindAsync(profileUserId);
+        if (index is not null)
+        {
+            index.PhotoUrl = null;
+            pgDb.AuditLogs.Add(new AuditLog
+            {
+                AdminId = adminId,
+                AdminEmail = adminEmail,
+                Action = "RejectPhoto",
+                EntityType = "ProfilePhoto",
+                EntityId = profileUserId,
+                Reason = reason,
+                CreatedAt = DateTime.UtcNow,
+            });
+            await pgDb.SaveChangesAsync();
+        }
     }
 
     // ── Audit logs ────────────────────────────────────────────────────────────

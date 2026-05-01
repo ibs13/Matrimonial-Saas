@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { profileApi } from '@/lib/api';
 import Spinner from '@/components/ui/Spinner';
@@ -15,7 +15,7 @@ import PartnerExpectationsStep from '@/components/profile/steps/PartnerExpectati
 import ContactStep from '@/components/profile/steps/ContactStep';
 import VisibilityStep from '@/components/profile/steps/VisibilityStep';
 import { statusBadgeClass, enumLabel, apiError } from '@/lib/utils';
-import type { ProfileResponse } from '@/types';
+import type { PhotoVisibility, ProfileResponse } from '@/types';
 
 const STEPS = [
   { id: 0, label: 'Basic', emoji: '👤' },
@@ -129,6 +129,9 @@ export default function ProfileSetupPage() {
         </div>
       )}
 
+      {/* Photo upload section */}
+      <PhotoUploadSection profile={profile} onSaved={handleSaved} />
+
       {/* Step tabs — desktop horizontal, mobile scrollable */}
       <div className="overflow-x-auto pb-1">
         <div className="flex gap-1 min-w-max">
@@ -212,6 +215,121 @@ export default function ProfileSetupPage() {
         <button onClick={() => router.push('/dashboard')} className="btn-secondary">
           ← Back to Dashboard
         </button>
+      </div>
+    </div>
+  );
+}
+
+function PhotoUploadSection({ profile, onSaved }: { profile: ProfileResponse; onSaved: (p: ProfileResponse) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState('');
+
+  const photo = profile.photos?.[0];
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError('');
+    setUploading(true);
+    try {
+      const updated = await profileApi.uploadPhoto(file);
+      onSaved(updated);
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    setError('');
+    try {
+      await profileApi.deletePhoto();
+      const updated = await profileApi.getMe();
+      onSaved(updated);
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleVisibility = async (visibility: PhotoVisibility) => {
+    try {
+      const updated = await profileApi.updatePhotoVisibility(visibility);
+      onSaved(updated);
+    } catch (err) {
+      setError(apiError(err));
+    }
+  };
+
+  return (
+    <div className="card">
+      <h2 className="font-semibold text-gray-900 mb-4">Profile Photo</h2>
+      <div className="flex items-start gap-4">
+        {/* Preview */}
+        <div className="w-20 h-20 rounded-full bg-primary-100 flex-shrink-0 overflow-hidden flex items-center justify-center text-primary-600 text-2xl font-bold">
+          {photo?.url
+            ? <img src={photo.url} alt="Profile photo" className="w-full h-full object-cover" />
+            : (profile.basic?.displayName?.[0]?.toUpperCase() ?? '?')
+          }
+        </div>
+
+        <div className="flex-1 space-y-3">
+          {photo ? (
+            <>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                  photo.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                  photo.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                  'bg-yellow-100 text-yellow-700'
+                }`}>
+                  {photo.status === 'Pending' ? 'Pending Review' : photo.status}
+                </span>
+                <span className="text-xs text-gray-500">Visibility:</span>
+                <select
+                  className="text-xs border border-gray-200 rounded-md px-2 py-0.5"
+                  value={photo.visibility}
+                  onChange={(e) => handleVisibility(e.target.value as PhotoVisibility)}
+                >
+                  <option value="Public">Public</option>
+                  <option value="ApprovedUsersOnly">Accepted connections only</option>
+                  <option value="Hidden">Hidden</option>
+                </select>
+              </div>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="text-xs text-red-600 hover:text-red-800 border border-red-200 hover:bg-red-50 rounded-lg px-3 py-1.5 transition-colors"
+              >
+                {deleting ? 'Removing…' : 'Remove photo'}
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-gray-500">Upload a photo to make your profile stand out. Max 5 MB (JPG, PNG, WebP).</p>
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                className="btn-primary text-sm py-1.5 px-4"
+              >
+                {uploading ? 'Uploading…' : 'Upload Photo'}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp"
+                className="hidden"
+                onChange={handleUpload}
+              />
+            </>
+          )}
+          {error && <p className="text-xs text-red-600">{error}</p>}
+        </div>
       </div>
     </div>
   );

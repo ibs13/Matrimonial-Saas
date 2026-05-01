@@ -42,6 +42,10 @@ public class ProfileIndex
     /// <summary>Mirrors Profile.Visibility.ProfileVisible — filtered at Postgres level.</summary>
     public bool ProfileVisible { get; set; } = true;
 
+    // ── Photo (denormalized — only Approved + Public photos are stored here) ─────
+    /// <summary>Null unless the profile has an approved, publicly-visible photo.</summary>
+    public string? PhotoUrl { get; set; }
+
     // ── Meta ──────────────────────────────────────────────────────────────────
     public int CompletionPercentage { get; set; } = 0;
     public DateTime? LastActiveAt { get; set; }

@@ -177,13 +177,17 @@ public class PartnerExpectations
     public string? AdditionalExpectations { get; set; }
 }
 
+[BsonIgnoreExtraElements]
 public class ProfilePhoto
 {
     public string Url { get; set; } = string.Empty;
-    public bool IsProfilePhoto { get; set; } = false;
 
-    /// <summary>If false, visible only to accepted connections.</summary>
-    public bool IsPublic { get; set; } = false;
+    [BsonRepresentation(BsonType.String)]
+    public PhotoVisibility Visibility { get; set; } = PhotoVisibility.Public;
+
+    /// <summary>Pending until an admin approves. Only Approved photos are shown publicly.</summary>
+    [BsonRepresentation(BsonType.String)]
+    public PhotoStatus Status { get; set; } = PhotoStatus.Pending;
 
     [BsonRepresentation(BsonType.DateTime)]
     public DateTime UploadedAt { get; set; } = DateTime.UtcNow;

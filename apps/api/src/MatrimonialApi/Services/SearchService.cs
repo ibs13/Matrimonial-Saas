@@ -93,6 +93,7 @@ public class SearchService(AppDbContext pgDb)
                 HeightCm = p.HeightCm,
                 CompletionPercentage = p.CompletionPercentage,
                 LastActiveAt = p.LastActiveAt,
+                PhotoUrl = p.PhotoUrl,
             })
             .ToListAsync();
 

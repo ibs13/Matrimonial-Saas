@@ -98,4 +98,28 @@ public class AdminController(AdminService adminService, ReportService reportServ
         await reportService.DismissAsync(CurrentAdminId, CurrentAdminEmail, id);
         return Ok(suspendResponse);
     }
+
+    // GET /api/admin/photos/pending
+    [HttpGet("photos/pending")]
+    public async Task<IActionResult> GetPendingPhotos([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        var response = await adminService.GetPendingPhotosAsync(page, pageSize);
+        return Ok(response);
+    }
+
+    // PATCH /api/admin/photos/{userId}/approve
+    [HttpPatch("photos/{userId:guid}/approve")]
+    public async Task<IActionResult> ApprovePhoto(Guid userId)
+    {
+        await adminService.ApprovePhotoAsync(CurrentAdminId, CurrentAdminEmail, userId);
+        return NoContent();
+    }
+
+    // PATCH /api/admin/photos/{userId}/reject
+    [HttpPatch("photos/{userId:guid}/reject")]
+    public async Task<IActionResult> RejectPhoto(Guid userId, [FromBody] RejectPhotoRequest request)
+    {
+        await adminService.RejectPhotoAsync(CurrentAdminId, CurrentAdminEmail, userId, request.Reason);
+        return NoContent();
+    }
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { interestApi, reportApi } from '@/lib/api';
+import { interestApi, profileApi, reportApi } from '@/lib/api';
 import { enumLabel, timeAgo, apiError } from '@/lib/utils';
 import Spinner from '@/components/ui/Spinner';
 import type { SearchResultItem, ReportReason } from '@/types';
@@ -24,6 +24,8 @@ export default function ProfileDetailPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+
   const [showReportForm, setShowReportForm] = useState(false);
   const [reportReason, setReportReason] = useState<ReportReason>('Fake');
   const [reportDescription, setReportDescription] = useState('');
@@ -43,6 +45,13 @@ export default function ProfileDetailPage() {
       router.replace('/search');
     }
   }, [id, router]);
+
+  useEffect(() => {
+    if (!id) return;
+    profileApi.getPhotoForProfile(id)
+      .then((res) => setPhotoUrl(res.photoUrl))
+      .catch(() => {});
+  }, [id]);
 
   const handleSubmitReport = async () => {
     setReportSubmitting(true);
@@ -88,8 +97,11 @@ export default function ProfileDetailPage() {
       {/* Profile header */}
       <div className="card">
         <div className="flex items-start gap-4">
-          <div className="w-20 h-20 rounded-full bg-primary-100 text-primary-600 font-bold text-3xl flex items-center justify-center flex-shrink-0">
-            {profile.displayName?.[0]?.toUpperCase() ?? '?'}
+          <div className="w-20 h-20 rounded-full bg-primary-100 text-primary-600 font-bold text-3xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {photoUrl
+              ? <img src={photoUrl} alt={profile.displayName} className="w-full h-full object-cover" />
+              : (profile.displayName?.[0]?.toUpperCase() ?? '?')
+            }
           </div>
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-gray-900">{profile.displayName}</h1>

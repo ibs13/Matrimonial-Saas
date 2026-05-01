@@ -37,3 +37,7 @@ public enum PrayerHabit { FiveTimes, Sometimes, Rarely, Never }
 public enum DietType { HalalOnly, Vegetarian, NonVegetarian, Other }
 
 public enum SmokingHabit { Never, Occasionally, Regularly }
+
+public enum PhotoVisibility { Public, ApprovedUsersOnly, Hidden }
+
+public enum PhotoStatus { Pending, Approved, Rejected }

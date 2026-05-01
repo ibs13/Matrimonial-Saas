@@ -119,4 +119,37 @@ public class ProfileController(ProfileService profileService) : ControllerBase
         var response = await profileService.SubmitForReviewAsync(CurrentUserId);
         return Ok(response);
     }
+
+    // POST /api/profile/photo — upload profile photo (multipart/form-data)
+    [HttpPost("photo")]
+    [RequestSizeLimit(6 * 1024 * 1024)]
+    public async Task<IActionResult> UploadPhoto(IFormFile file, CancellationToken ct)
+    {
+        var response = await profileService.UploadPhotoAsync(CurrentUserId, file, ct);
+        return Ok(response);
+    }
+
+    // PATCH /api/profile/photo/visibility — change photo visibility
+    [HttpPatch("photo/visibility")]
+    public async Task<IActionResult> UpdatePhotoVisibility([FromBody] UpdatePhotoVisibilityRequest request)
+    {
+        var response = await profileService.UpdatePhotoVisibilityAsync(CurrentUserId, request.Visibility);
+        return Ok(response);
+    }
+
+    // DELETE /api/profile/photo — remove profile photo
+    [HttpDelete("photo")]
+    public async Task<IActionResult> DeletePhoto(CancellationToken ct)
+    {
+        await profileService.DeletePhotoAsync(CurrentUserId, ct);
+        return NoContent();
+    }
+
+    // GET /api/profile/{userId}/photo — get photo URL for viewer (respects visibility rules)
+    [HttpGet("{userId:guid}/photo")]
+    public async Task<IActionResult> GetPhoto(Guid userId)
+    {
+        var url = await profileService.GetPhotoUrlForViewerAsync(CurrentUserId, userId);
+        return Ok(new { photoUrl = url });
+    }
 }

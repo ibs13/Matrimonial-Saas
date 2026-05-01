@@ -6,9 +6,9 @@ import { adminApi } from '@/lib/api';
 import { formatDate, enumLabel, apiError } from '@/lib/utils';
 import Spinner from '@/components/ui/Spinner';
 import Modal from '@/components/ui/Modal';
-import type { PendingProfileItem, AdminProfileDetailResponse, AuditLogItem, AdminActionResponse, ReportItem } from '@/types';
+import type { PendingProfileItem, AdminProfileDetailResponse, AuditLogItem, AdminActionResponse, ReportItem, PendingPhotoItem } from '@/types';
 
-type Tab = 'pending' | 'reports' | 'auditLogs';
+type Tab = 'pending' | 'photos' | 'reports' | 'auditLogs';
 
 export default function AdminProfilesPage() {
   const [tab, setTab] = useState<Tab>('pending');
@@ -28,6 +28,12 @@ export default function AdminProfilesPage() {
   const [detail, setDetail] = useState<AdminProfileDetailResponse | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const [photos, setPhotos] = useState<PendingPhotoItem[]>([]);
+  const [photoTotal, setPhotoTotal] = useState(0);
+  const [photoPage, setPhotoPage] = useState(1);
+  const [photoPages, setPhotoPages] = useState(1);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
 
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [reportTotal, setReportTotal] = useState(0);
@@ -49,6 +55,18 @@ export default function AdminProfilesPage() {
       setPendingPages(Math.ceil(res.totalCount / 15));
     } finally {
       setLoadingPending(false);
+    }
+  }, []);
+
+  const loadPhotos = useCallback(async (p: number) => {
+    setLoadingPhotos(true);
+    try {
+      const res = await adminApi.getPendingPhotos({ page: p, pageSize: 20 });
+      setPhotos(res.items);
+      setPhotoTotal(res.totalCount);
+      setPhotoPages(Math.ceil(res.totalCount / 20));
+    } finally {
+      setLoadingPhotos(false);
     }
   }, []);
 
@@ -79,6 +97,10 @@ export default function AdminProfilesPage() {
   useEffect(() => {
     loadPending(1);
   }, [loadPending]);
+
+  useEffect(() => {
+    if (tab === 'photos') loadPhotos(photoPage);
+  }, [tab, photoPage, loadPhotos]);
 
   useEffect(() => {
     if (tab === 'reports') loadReports(reportPage);
@@ -164,6 +186,34 @@ export default function AdminProfilesPage() {
     }
   };
 
+  const handleApprovePhoto = async (userId: string) => {
+    setActionError('');
+    setActionSuccess('');
+    try {
+      await adminApi.approvePhoto(userId);
+      setPhotos((prev) => prev.filter((p) => p.userId !== userId));
+      setPhotoTotal((t) => t - 1);
+      setActionSuccess('Photo approved.');
+    } catch (err) {
+      setActionError(apiError(err));
+    }
+  };
+
+  const handleRejectPhoto = async (userId: string) => {
+    const reason = prompt('Reason for rejection:');
+    if (reason === null) return;
+    setActionError('');
+    setActionSuccess('');
+    try {
+      await adminApi.rejectPhoto(userId, reason.trim() || 'Does not meet guidelines');
+      setPhotos((prev) => prev.filter((p) => p.userId !== userId));
+      setPhotoTotal((t) => t - 1);
+      setActionSuccess('Photo rejected.');
+    } catch (err) {
+      setActionError(apiError(err));
+    }
+  };
+
   const handleDismissReport = async (id: string) => {
     if (!confirm('Dismiss this report?')) return;
     setActionError('');
@@ -200,7 +250,7 @@ export default function AdminProfilesPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200">
-        {(['pending', 'reports', 'auditLogs'] as Tab[]).map((t) => (
+        {(['pending', 'photos', 'reports', 'auditLogs'] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -212,6 +262,8 @@ export default function AdminProfilesPage() {
           >
             {t === 'pending'
               ? `Pending (${pendingTotal})`
+              : t === 'photos'
+              ? `Photos${photoTotal > 0 ? ` (${photoTotal})` : ''}`
               : t === 'reports'
               ? `Reports${reportTotal > 0 ? ` (${reportTotal})` : ''}`
               : 'Audit Logs'}
@@ -301,6 +353,47 @@ export default function AdminProfilesPage() {
               />
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── PHOTOS TAB ── */}
+      {tab === 'photos' && (
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">{photoTotal} photo{photoTotal !== 1 ? 's' : ''} pending review</p>
+
+          {loadingPhotos ? (
+            <div className="flex justify-center py-8"><Spinner /></div>
+          ) : photos.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <p className="text-3xl mb-2">✅</p>
+              <p>No pending photos</p>
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {photos.map((photo) => (
+                <PendingPhotoCard
+                  key={photo.userId}
+                  photo={photo}
+                  onApprove={() => handleApprovePhoto(photo.userId)}
+                  onReject={() => handleRejectPhoto(photo.userId)}
+                />
+              ))}
+            </div>
+          )}
+
+          {photoPages > 1 && (
+            <div className="flex gap-2">
+              {Array.from({ length: Math.min(photoPages, 10) }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => { setPhotoPage(p); loadPhotos(p); }}
+                  className={`w-9 h-9 rounded-lg text-sm ${p === photoPage ? 'bg-primary-600 text-white' : 'bg-white border border-gray-200 text-gray-700'}`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -582,6 +675,38 @@ function ReportRow({
         </button>
         <button onClick={onSuspend} className="btn-danger text-xs py-1 px-2.5">
           Suspend
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PendingPhotoCard({ photo, onApprove, onReject }: {
+  photo: PendingPhotoItem;
+  onApprove: () => void;
+  onReject: () => void;
+}) {
+  return (
+    <div className="card flex flex-col gap-3">
+      <div className="w-full aspect-square rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+        <img
+          src={photo.photoUrl}
+          alt={photo.displayName}
+          className="w-full h-full object-cover"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+        />
+      </div>
+      <div>
+        <p className="font-medium text-gray-900 truncate">{photo.displayName}</p>
+        <p className="text-xs text-gray-500">Visibility: {photo.visibility}</p>
+        <p className="text-xs text-gray-400">{formatDate(photo.uploadedAt)}</p>
+      </div>
+      <div className="flex gap-2">
+        <button onClick={onApprove} className="flex-1 btn-primary text-xs py-1.5">
+          ✅ Approve
+        </button>
+        <button onClick={onReject} className="flex-1 btn-danger text-xs py-1.5">
+          ❌ Reject
         </button>
       </div>
     </div>

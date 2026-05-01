@@ -20,4 +20,6 @@ public class SearchResultItem
     public int? HeightCm { get; set; }
     public int CompletionPercentage { get; set; }
     public DateTime? LastActiveAt { get; set; }
+    /// <summary>Only set when the profile has an Approved + Public photo.</summary>
+    public string? PhotoUrl { get; set; }
 }

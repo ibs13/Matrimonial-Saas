@@ -3,12 +3,13 @@ using MatrimonialApi.DTOs.Profile;
 using MatrimonialApi.Models;
 using MatrimonialApi.Models.Enums;
 using MatrimonialApi.Models.Mongo;
+using MatrimonialApi.Storage;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Driver;
 
 namespace MatrimonialApi.Services;
 
-public class ProfileService(AppDbContext pgDb, MongoDbContext mongoDb)
+public class ProfileService(AppDbContext pgDb, MongoDbContext mongoDb, IPhotoStorage photoStorage)
 {
     // ── Create ────────────────────────────────────────────────────────────────
 
@@ -223,6 +224,83 @@ public class ProfileService(AppDbContext pgDb, MongoDbContext mongoDb)
         return await SaveAsync(profile);
     }
 
+    // ── Photo ─────────────────────────────────────────────────────────────────
+
+    public async Task<ProfileResponse> UploadPhotoAsync(Guid userId, IFormFile file, CancellationToken ct = default)
+    {
+        var profile = await GetOrThrowAsync(userId);
+
+        if (profile.Photos.Count > 0)
+            throw new InvalidOperationException("You already have a profile photo. Delete it first to upload a new one.");
+
+        var url = await photoStorage.SaveAsync(file, userId, ct);
+
+        profile.Photos.Add(new ProfilePhoto
+        {
+            Url = url,
+            Visibility = PhotoVisibility.Public,
+            Status = PhotoStatus.Pending,
+            UploadedAt = DateTime.UtcNow,
+        });
+
+        return await SaveAsync(profile);
+    }
+
+    public async Task<ProfileResponse> UpdatePhotoVisibilityAsync(Guid userId, PhotoVisibility visibility)
+    {
+        var profile = await GetOrThrowAsync(userId);
+
+        var photo = profile.Photos.FirstOrDefault()
+            ?? throw new KeyNotFoundException("No photo found. Upload a photo first.");
+
+        photo.Visibility = visibility;
+
+        return await SaveAsync(profile);
+    }
+
+    public async Task<ProfileResponse> DeletePhotoAsync(Guid userId, CancellationToken ct = default)
+    {
+        var profile = await GetOrThrowAsync(userId);
+
+        var photo = profile.Photos.FirstOrDefault()
+            ?? throw new KeyNotFoundException("No photo found.");
+
+        await photoStorage.DeleteAsync(photo.Url, ct);
+        profile.Photos.Clear();
+
+        return await SaveAsync(profile);
+    }
+
+    public async Task<string?> GetPhotoUrlForViewerAsync(Guid viewerUserId, Guid profileUserId)
+    {
+        var profile = await mongoDb.Profiles
+            .Find(p => p.Id == profileUserId)
+            .FirstOrDefaultAsync();
+
+        if (profile is null) return null;
+
+        var photo = profile.Photos.FirstOrDefault();
+        if (photo is null || photo.Status != PhotoStatus.Approved) return null;
+
+        return photo.Visibility switch
+        {
+            PhotoVisibility.Public => photo.Url,
+            PhotoVisibility.Hidden => null,
+            PhotoVisibility.ApprovedUsersOnly => await HasAcceptedInterestAsync(viewerUserId, profileUserId)
+                ? photo.Url
+                : null,
+            _ => null,
+        };
+    }
+
+    private async Task<bool> HasAcceptedInterestAsync(Guid viewerUserId, Guid profileUserId)
+    {
+        return await pgDb.InterestRequests.AnyAsync(r =>
+            r.Status == InterestRequestStatus.Accepted &&
+            ((r.SenderId == viewerUserId && r.ReceiverId == profileUserId) ||
+             (r.SenderId == profileUserId && r.ReceiverId == viewerUserId)));
+    }
+
     // ── Submit for review ─────────────────────────────────────────────────────
 
     public async Task<ProfileResponse> SubmitForReviewAsync(Guid userId)
@@ -306,6 +384,7 @@ public class ProfileService(AppDbContext pgDb, MongoDbContext mongoDb)
             existing.Status = profile.Status.ToString();
             existing.ProfileVisible = profile.Visibility.ProfileVisible;
             existing.CompletionPercentage = profile.CompletionPercentage;
+            existing.PhotoUrl = GetPublicPhotoUrl(profile);
             existing.LastActiveAt = profile.LastActiveAt;
             existing.UpdatedAt = profile.UpdatedAt;
         }
@@ -332,9 +411,17 @@ public class ProfileService(AppDbContext pgDb, MongoDbContext mongoDb)
         Status = profile.Status.ToString(),
         ProfileVisible = profile.Visibility.ProfileVisible,
         CompletionPercentage = profile.CompletionPercentage,
+        PhotoUrl = GetPublicPhotoUrl(profile),
         LastActiveAt = profile.LastActiveAt,
         UpdatedAt = profile.UpdatedAt,
     };
+
+    private static string? GetPublicPhotoUrl(Profile profile)
+    {
+        var photo = profile.Photos.FirstOrDefault();
+        return photo?.Status == PhotoStatus.Approved && photo?.Visibility == PhotoVisibility.Public
+            ? photo.Url : null;
+    }
 
     private static int ComputeAge(DateTime dob)
     {

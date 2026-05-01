@@ -73,6 +73,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasIndex(p => p.HeightCm).HasDatabaseName("IX_ProfileIndex_Height");
             entity.HasIndex(p => p.EducationLevelOrder).HasDatabaseName("IX_ProfileIndex_EducationOrder");
 
+            entity.Property(p => p.PhotoUrl).HasMaxLength(500);
+
             // Sort indexes
             entity.HasIndex(p => p.LastActiveAt).HasDatabaseName("IX_ProfileIndex_LastActive");
             entity.HasIndex(p => p.UpdatedAt).HasDatabaseName("IX_ProfileIndex_UpdatedAt");

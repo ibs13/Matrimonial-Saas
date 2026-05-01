@@ -16,6 +16,8 @@ export type DietType = 'HalalOnly' | 'Vegetarian' | 'NonVegetarian' | 'Other';
 export type SmokingHabit = 'Never' | 'Occasionally' | 'Regularly';
 export type InterestRequestStatus = 'Pending' | 'Accepted' | 'Rejected' | 'Cancelled';
 export type SearchSortBy = 'LastActive' | 'Newest' | 'Completion';
+export type PhotoVisibility = 'Public' | 'ApprovedUsersOnly' | 'Hidden';
+export type PhotoStatus = 'Pending' | 'Approved' | 'Rejected';
 
 // ── Auth ───────────────────────────────────────────────────────────────────────
 
@@ -126,8 +128,8 @@ export interface PartnerExpectations {
 
 export interface ProfilePhoto {
   url: string;
-  isProfilePhoto: boolean;
-  isPublic: boolean;
+  visibility: PhotoVisibility;
+  status: PhotoStatus;
   uploadedAt: string;
 }
 
@@ -194,6 +196,7 @@ export interface SearchResultItem {
   heightCm?: number;
   completionPercentage: number;
   lastActiveAt?: string;
+  photoUrl?: string;
 }
 
 export interface SearchResponse {
@@ -282,6 +285,23 @@ export interface SavedProfileResponse {
   educationLevel?: string;
   completionPercentage: number;
   savedAt: string;
+}
+
+// ── Photos ────────────────────────────────────────────────────────────────────
+
+export interface PendingPhotoItem {
+  userId: string;
+  displayName: string;
+  photoUrl: string;
+  visibility: string;
+  uploadedAt: string;
+}
+
+export interface PendingPhotoListResponse {
+  items: PendingPhotoItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
 }
 
 // ── Admin ─────────────────────────────────────────────────────────────────────

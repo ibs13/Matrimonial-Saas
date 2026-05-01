@@ -13,6 +13,7 @@ import type {
   PartnerExpectations,
   ContactInfo,
   ProfileVisibility,
+  PhotoVisibility,
   SearchProfilesRequest,
   SearchResponse,
   SendInterestRequest,
@@ -22,6 +23,7 @@ import type {
   ReportResponse,
   ReportListResponse,
   SavedProfileResponse,
+  PendingPhotoListResponse,
   PendingProfilesResponse,
   AdminProfileDetailResponse,
   AdminActionResponse,
@@ -187,6 +189,28 @@ export const profileApi = {
 
   submitForReview: () =>
     http.post<ProfileResponse>("/api/profile/submit").then((r) => r.data),
+
+  uploadPhoto: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return http
+      .post<ProfileResponse>("/api/profile/photo", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      .then((r) => r.data);
+  },
+
+  updatePhotoVisibility: (visibility: PhotoVisibility) =>
+    http
+      .patch<ProfileResponse>("/api/profile/photo/visibility", { visibility })
+      .then((r) => r.data),
+
+  deletePhoto: () => http.delete("/api/profile/photo"),
+
+  getPhotoForProfile: (userId: string) =>
+    http
+      .get<{ photoUrl: string | null }>(`/api/profile/${userId}/photo`)
+      .then((r) => r.data),
 };
 
 // ── Search ────────────────────────────────────────────────────────────────────
@@ -308,4 +332,15 @@ export const adminApi = {
     http
       .patch<AdminActionResponse>(`/api/admin/reports/${id}/suspend`, { reason })
       .then((r) => r.data),
+
+  getPendingPhotos: (params: { page?: number; pageSize?: number }) =>
+    http
+      .get<PendingPhotoListResponse>("/api/admin/photos/pending", { params })
+      .then((r) => r.data),
+
+  approvePhoto: (userId: string) =>
+    http.patch(`/api/admin/photos/${userId}/approve`),
+
+  rejectPhoto: (userId: string, reason: string) =>
+    http.patch(`/api/admin/photos/${userId}/reject`, { reason }),
 };

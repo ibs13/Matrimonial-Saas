@@ -6,6 +6,7 @@ using MatrimonialApi.Data;
 using MatrimonialApi.Email;
 using MatrimonialApi.Middleware;
 using MatrimonialApi.Services;
+using MatrimonialApi.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
@@ -52,6 +53,9 @@ if (builder.Environment.IsDevelopment())
     builder.Services.AddSingleton<IEmailSender, DevEmailSender>();
 else
     builder.Services.AddSingleton<IEmailSender, NoOpEmailSender>();
+
+// Photo storage: local disk for dev. Swap to S3/R2 in production by implementing IPhotoStorage.
+builder.Services.AddSingleton<IPhotoStorage, LocalDiskPhotoStorage>();
 
 // ── Health checks ─────────────────────────────────────────────────────────────
 builder.Services.AddHealthChecks()
@@ -177,6 +181,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors();
+app.UseStaticFiles();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

@@ -296,8 +296,11 @@ function ProfileCard({
     <div className="card flex flex-col gap-3 hover:shadow-md transition-shadow">
       {/* Avatar */}
       <div className="flex items-center gap-3">
-        <div className="w-12 h-12 rounded-full bg-primary-100 text-primary-600 font-bold text-lg flex items-center justify-center flex-shrink-0">
-          {item.displayName?.[0]?.toUpperCase() ?? '?'}
+        <div className="w-12 h-12 rounded-full bg-primary-100 text-primary-600 font-bold text-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+          {item.photoUrl
+            ? <img src={item.photoUrl} alt={item.displayName} className="w-full h-full object-cover" />
+            : (item.displayName?.[0]?.toUpperCase() ?? '?')
+          }
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-900 truncate">{item.displayName}</p>
