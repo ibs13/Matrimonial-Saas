@@ -1,4 +1,5 @@
 using MatrimonialApi.Models.Mongo;
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace MatrimonialApi.Data;
@@ -22,6 +23,9 @@ public class MongoDbContext
 
     public IMongoCollection<Profile> Profiles =>
         _db.GetCollection<Profile>("profiles");
+
+    public Task PingAsync(CancellationToken ct = default) =>
+        _db.RunCommandAsync<BsonDocument>(new BsonDocument("ping", 1), cancellationToken: ct);
 
     private void EnsureIndexes()
     {

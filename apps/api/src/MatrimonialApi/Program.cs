@@ -1,12 +1,15 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using MatrimonialApi;
 using MatrimonialApi.Data;
 using MatrimonialApi.Middleware;
 using MatrimonialApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -38,6 +41,11 @@ builder.Services.AddScoped<ProfileService>();
 builder.Services.AddScoped<SearchService>();
 builder.Services.AddScoped<InterestService>();
 builder.Services.AddScoped<AdminService>();
+
+// ── Health checks ─────────────────────────────────────────────────────────────
+builder.Services.AddHealthChecks()
+    .AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"])
+    .AddCheck<MongoHealthCheck>("mongodb", tags: ["ready"]);
 
 // ── JWT Authentication ────────────────────────────────────────────────────────
 var jwtSecret = builder.Configuration["Jwt:Secret"]
@@ -165,6 +173,28 @@ app.MapGet("/", () => Results.Ok(new
     status = "Running",
     swagger = "/swagger"
 }));
+
+// ── Health check endpoints ────────────────────────────────────────────────────
+// No auth required; excluded from rate limiting. Suitable for Railway / Render.
+// /health     — liveness: process is up (no DB queries)
+// /health/ready — readiness: both PostgreSQL and MongoDB are reachable
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    Predicate = _ => false,
+    ResponseWriter = HealthResponseWriter.WriteAsync,
+}).DisableRateLimiting();
+
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+    ResponseWriter = HealthResponseWriter.WriteAsync,
+    ResultStatusCodes =
+    {
+        [HealthStatus.Healthy] = StatusCodes.Status200OK,
+        [HealthStatus.Degraded] = StatusCodes.Status200OK,
+        [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable,
+    },
+}).DisableRateLimiting();
 
 app.MapControllers();
 

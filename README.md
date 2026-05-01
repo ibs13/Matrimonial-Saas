@@ -17,6 +17,7 @@ A full-stack Bangladeshi matrimonial platform. v1 covers registration, multi-ste
 - [Local Setup (without Docker)](#local-setup-without-docker)
 - [Environment Variables](#environment-variables)
 - [API Overview](#api-overview)
+- [Health Check Endpoints](#health-check-endpoints)
 - [Security Considerations](#security-considerations)
 - [Screenshots](#screenshots)
 - [Roadmap](#roadmap)
@@ -326,6 +327,50 @@ All endpoints are prefixed with `/api`. Protected endpoints require `Authorizati
 | `GET` | `/audit-logs` | Paginated audit log, filterable by action / admin / profile |
 
 A Swagger UI with full schema documentation is available at **http://localhost:5000/swagger** when running in Development mode.
+
+---
+
+## Health Check Endpoints
+
+Two unauthenticated, rate-limit-exempt endpoints are available for deployment platform monitoring.
+
+| Endpoint | Purpose | Success | Failure |
+|---|---|---|---|
+| `GET /health` | **Liveness** — confirms the process is running | `200 {"status":"healthy"}` | Never fails (no I/O) |
+| `GET /health/ready` | **Readiness** — confirms both databases are reachable | `200 {"status":"healthy"}` | `503 {"status":"unhealthy"}` |
+
+### Example responses
+
+```jsonc
+// GET /health  — 200 OK
+{ "status": "healthy" }
+
+// GET /health/ready  — 200 OK (both databases up)
+{
+  "status": "healthy",
+  "checks": {
+    "postgres": "healthy",
+    "mongodb": "healthy"
+  }
+}
+
+// GET /health/ready  — 503 Service Unavailable (one database down)
+{
+  "status": "unhealthy",
+  "checks": {
+    "postgres": "healthy",
+    "mongodb": "unhealthy"
+  }
+}
+```
+
+### Platform configuration
+
+**Railway** — set the health check path to `/health` (liveness) in the service settings. Use `/health/ready` as the startup probe if you want Railway to wait for database connectivity before marking the deploy live.
+
+**Render** — configure the health check path to `/health` in the Web Service settings. The endpoint returns `200` as long as the process is running, which satisfies Render's liveness requirement without depending on database availability at the time of the health ping.
+
+> Connection strings, credentials, and error stack traces are never included in health check responses.
 
 ---
 
