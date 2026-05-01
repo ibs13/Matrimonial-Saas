@@ -75,6 +75,11 @@ public class AuthService(AppDbContext db, TokenService tokenService)
         var refreshToken = tokenService.CreateRefreshToken(user.Id);
 
         db.RefreshTokens.Add(refreshToken);
+
+        var index = await db.ProfileIndexes.FindAsync(user.Id);
+        if (index is not null)
+            index.LastActiveAt = DateTime.UtcNow;
+
         await db.SaveChangesAsync();
 
         return new AuthResponse

@@ -31,6 +31,8 @@ export default function AdminProfilesPage() {
 
   const [modal, setModal] = useState<{ type: 'reject' | 'suspend'; id: string } | null>(null);
   const [actioning, setActioning] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [actionSuccess, setActionSuccess] = useState('');
 
   const loadPending = useCallback(async (p: number) => {
     setLoadingPending(true);
@@ -68,11 +70,12 @@ export default function AdminProfilesPage() {
     setSelectedId(id);
     setDetail(null);
     setDetailLoading(true);
+    setActionError('');
     try {
       const d = await adminApi.getProfileDetail(id);
       setDetail(d);
     } catch (err) {
-      alert(apiError(err));
+      setActionError(apiError(err));
       setSelectedId(null);
     } finally {
       setDetailLoading(false);
@@ -82,13 +85,15 @@ export default function AdminProfilesPage() {
   const handleApprove = async (id: string) => {
     if (!confirm('Approve this profile?')) return;
     setActioning(true);
+    setActionError('');
+    setActionSuccess('');
     try {
       await adminApi.approveProfile(id);
       await loadPending(pendingPage);
       if (selectedId === id) setSelectedId(null);
-      alert('Profile approved ✅');
+      setActionSuccess('Profile approved.');
     } catch (err) {
-      alert(apiError(err));
+      setActionError(apiError(err));
     } finally {
       setActioning(false);
     }
@@ -97,13 +102,16 @@ export default function AdminProfilesPage() {
   const handleRejectConfirm = async (reason: string) => {
     if (!modal) return;
     setActioning(true);
+    setActionError('');
+    setActionSuccess('');
     try {
       await adminApi.rejectProfile(modal.id, reason);
       setModal(null);
       await loadPending(pendingPage);
       if (selectedId === modal.id) setSelectedId(null);
+      setActionSuccess('Profile rejected.');
     } catch (err) {
-      alert(apiError(err));
+      setActionError(apiError(err));
     } finally {
       setActioning(false);
     }
@@ -112,13 +120,16 @@ export default function AdminProfilesPage() {
   const handleSuspendConfirm = async (reason: string) => {
     if (!modal) return;
     setActioning(true);
+    setActionError('');
+    setActionSuccess('');
     try {
       await adminApi.suspendProfile(modal.id, reason);
       setModal(null);
       await loadPending(pendingPage);
       if (selectedId === modal.id) setSelectedId(null);
+      setActionSuccess('Profile suspended.');
     } catch (err) {
-      alert(apiError(err));
+      setActionError(apiError(err));
     } finally {
       setActioning(false);
     }
@@ -130,6 +141,19 @@ export default function AdminProfilesPage() {
         <h1 className="text-2xl font-bold text-gray-900">Admin — Profile Review</h1>
         <p className="text-gray-500 text-sm mt-1">{pendingTotal} profiles pending review</p>
       </div>
+
+      {actionError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 flex items-center justify-between">
+          <span>{actionError}</span>
+          <button onClick={() => setActionError('')} className="ml-4 text-red-500 hover:text-red-700 font-medium">✕</button>
+        </div>
+      )}
+      {actionSuccess && (
+        <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm text-green-700 flex items-center justify-between">
+          <span>{actionSuccess}</span>
+          <button onClick={() => setActionSuccess('')} className="ml-4 text-green-500 hover:text-green-700 font-medium">✕</button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200">

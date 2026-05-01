@@ -17,6 +17,7 @@ export default function SentInterestsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState('');
 
   const load = useCallback(async (p: number, status: string) => {
     setLoading(true);
@@ -41,13 +42,14 @@ export default function SentInterestsPage() {
   const handleCancel = async (id: string) => {
     if (!confirm('Cancel this interest request?')) return;
     setCancelling(id);
+    setCancelError('');
     try {
       await interestApi.cancel(id);
       setItems((prev) =>
         prev.map((i) => (i.id === id ? { ...i, status: 'Cancelled' } : i))
       );
     } catch (err) {
-      alert(apiError(err));
+      setCancelError(apiError(err));
     } finally {
       setCancelling(null);
     }
@@ -81,6 +83,13 @@ export default function SentInterestsPage() {
           </button>
         ))}
       </div>
+
+      {cancelError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 flex items-center justify-between">
+          <span>{cancelError}</span>
+          <button onClick={() => setCancelError('')} className="ml-4 text-red-500 hover:text-red-700 font-medium">✕</button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12"><Spinner size="lg" /></div>

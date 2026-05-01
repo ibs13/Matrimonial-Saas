@@ -159,12 +159,19 @@ public class AdminService(AppDbContext pgDb, MongoDbContext mongoDb)
         profile.Status = newStatus;
         profile.UpdatedAt = DateTime.UtcNow;
 
-        await mongoDb.Profiles.ReplaceOneAsync(p => p.Id == profile.Id, profile);
-
-        // Sync index status and write audit log in one SaveChanges call
+        // Read/prepare PostgreSQL changes BEFORE writing to MongoDB so a PG miss doesn't leave the stores inconsistent
         var index = await pgDb.ProfileIndexes.FindAsync(profile.Id);
-        if (index is not null)
+        if (index is null)
+        {
+            pgDb.ProfileIndexes.Add(BuildIndexFromProfile(profile));
+        }
+        else
+        {
             index.Status = newStatus.ToString();
+            index.UpdatedAt = profile.UpdatedAt;
+        }
+
+        await mongoDb.Profiles.ReplaceOneAsync(p => p.Id == profile.Id, profile);
 
         pgDb.AuditLogs.Add(new AuditLog
         {
@@ -184,6 +191,41 @@ public class AdminService(AppDbContext pgDb, MongoDbContext mongoDb)
             ProfileId = profile.Id,
             Action = action,
             NewStatus = newStatus,
+        };
+    }
+
+    private static ProfileIndex BuildIndexFromProfile(Profile profile)
+    {
+        static int? Age(DateTime? dob)
+        {
+            if (dob is null) return null;
+            var today = DateTime.UtcNow;
+            var age = today.Year - dob.Value.Year;
+            if (dob.Value.Date > today.AddYears(-age)) age--;
+            return age;
+        }
+
+        return new ProfileIndex
+        {
+            Id = profile.Id,
+            DisplayName = profile.Basic?.DisplayName,
+            Gender = profile.Basic?.Gender?.ToString(),
+            Religion = profile.Basic?.Religion?.ToString(),
+            MaritalStatus = profile.Basic?.MaritalStatus?.ToString(),
+            CountryOfResidence = profile.Basic?.CountryOfResidence,
+            Division = profile.Basic?.Division,
+            District = profile.Basic?.District,
+            AgeYears = Age(profile.Basic?.DateOfBirth),
+            HeightCm = profile.Physical?.HeightCm,
+            EducationLevel = profile.Education?.Level?.ToString(),
+            EducationLevelOrder = profile.Education?.Level.HasValue == true
+                ? (int)profile.Education.Level.Value : (int?)null,
+            EmploymentType = profile.Career?.EmploymentType?.ToString(),
+            Status = profile.Status.ToString(),
+            ProfileVisible = profile.Visibility.ProfileVisible,
+            CompletionPercentage = profile.CompletionPercentage,
+            LastActiveAt = profile.LastActiveAt,
+            UpdatedAt = profile.UpdatedAt,
         };
     }
 

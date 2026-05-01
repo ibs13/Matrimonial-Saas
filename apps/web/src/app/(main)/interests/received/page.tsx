@@ -16,6 +16,7 @@ export default function ReceivedInterestsPage() {
   const [statusFilter, setStatusFilter] = useState('Pending');
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState('');
 
   const load = useCallback(async (p: number, status: string) => {
     setLoading(true);
@@ -39,11 +40,12 @@ export default function ReceivedInterestsPage() {
 
   const handleAccept = async (id: string) => {
     setActionId(id);
+    setActionError('');
     try {
       const updated = await interestApi.accept(id);
       setItems((prev) => prev.map((i) => (i.id === id ? updated : i)));
     } catch (err) {
-      alert(apiError(err));
+      setActionError(apiError(err));
     } finally {
       setActionId(null);
     }
@@ -52,11 +54,12 @@ export default function ReceivedInterestsPage() {
   const handleReject = async (id: string) => {
     if (!confirm('Reject this interest request?')) return;
     setActionId(id);
+    setActionError('');
     try {
       const updated = await interestApi.reject(id);
       setItems((prev) => prev.map((i) => (i.id === id ? updated : i)));
     } catch (err) {
-      alert(apiError(err));
+      setActionError(apiError(err));
     } finally {
       setActionId(null);
     }
@@ -89,6 +92,13 @@ export default function ReceivedInterestsPage() {
           </button>
         ))}
       </div>
+
+      {actionError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 flex items-center justify-between">
+          <span>{actionError}</span>
+          <button onClick={() => setActionError('')} className="ml-4 text-red-500 hover:text-red-700 font-medium">✕</button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12"><Spinner size="lg" /></div>

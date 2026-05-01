@@ -29,15 +29,20 @@ export default function SearchPage() {
   const [searched, setSearched] = useState(false);
   const [sending, setSending] = useState<string | null>(null);
   const [sentSet, setSentSet] = useState<Set<string>>(new Set());
+  const [searchError, setSearchError] = useState('');
+  const [sendError, setSendError] = useState('');
 
   const doSearch = useCallback(async (f: SearchProfilesRequest) => {
     setLoading(true);
+    setSearchError('');
     try {
       const res = await searchApi.search(f);
       setResults(res.items);
       setTotalCount(res.totalCount);
       setTotalPages(res.totalPages);
       setSearched(true);
+    } catch (err) {
+      setSearchError(apiError(err));
     } finally {
       setLoading(false);
     }
@@ -59,11 +64,12 @@ export default function SearchPage() {
 
   const handleSendInterest = async (userId: string) => {
     setSending(userId);
+    setSendError('');
     try {
       await interestApi.send({ receiverId: userId });
       setSentSet((s) => new Set([...s, userId]));
     } catch (err) {
-      alert(apiError(err));
+      setSendError(apiError(err));
     } finally {
       setSending(null);
     }
@@ -179,6 +185,19 @@ export default function SearchPage() {
           </button>
         </div>
       </form>
+
+      {searchError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+          Search failed: {searchError}
+        </div>
+      )}
+
+      {sendError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 flex items-center justify-between">
+          <span>Could not send interest: {sendError}</span>
+          <button onClick={() => setSendError('')} className="ml-4 text-red-500 hover:text-red-700 font-medium">✕</button>
+        </div>
+      )}
 
       {/* Results */}
       {loading && (

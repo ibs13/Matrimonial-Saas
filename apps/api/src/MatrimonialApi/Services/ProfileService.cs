@@ -40,6 +40,10 @@ public class ProfileService(AppDbContext pgDb, MongoDbContext mongoDb)
 
     public async Task<ProfileResponse> UpdateBasicAsync(Guid userId, UpdateBasicInfoRequest req)
     {
+        var minDob = DateTime.UtcNow.AddYears(-18);
+        if (req.DateOfBirth > minDob)
+            throw new ArgumentException("You must be at least 18 years old.");
+
         var profile = await GetOrThrowAsync(userId);
 
         profile.Basic = new BasicInfo
@@ -256,6 +260,7 @@ public class ProfileService(AppDbContext pgDb, MongoDbContext mongoDb)
     {
         profile.CompletionPercentage = ProfileCompletionService.Calculate(profile);
         profile.UpdatedAt = DateTime.UtcNow;
+        profile.LastActiveAt = DateTime.UtcNow;
 
         await mongoDb.Profiles.ReplaceOneAsync(
             p => p.Id == profile.Id,
