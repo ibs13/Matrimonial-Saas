@@ -233,6 +233,22 @@ export interface InterestListResponse {
   totalPages: number;
 }
 
+// ── Saved Profiles ────────────────────────────────────────────────────────────
+
+export interface SavedProfileResponse {
+  id: string;
+  savedUserId: string;
+  displayName: string;
+  gender?: string;
+  ageYears?: number;
+  religion?: string;
+  countryOfResidence?: string;
+  division?: string;
+  educationLevel?: string;
+  completionPercentage: number;
+  savedAt: string;
+}
+
 // ── Admin ─────────────────────────────────────────────────────────────────────
 
 export interface PendingProfileItem {

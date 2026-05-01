@@ -18,6 +18,7 @@ import type {
   SendInterestRequest,
   InterestRequestResponse,
   InterestListResponse,
+  SavedProfileResponse,
   PendingProfilesResponse,
   AdminProfileDetailResponse,
   AdminActionResponse,
@@ -215,6 +216,20 @@ export const interestApi = {
     http
       .patch<InterestRequestResponse>(`/api/interests/${id}/reject`)
       .then((r) => r.data),
+};
+
+// ── Saved Profiles ────────────────────────────────────────────────────────────
+
+export const savedApi = {
+  getAll: () =>
+    http.get<SavedProfileResponse[]>("/api/saved").then((r) => r.data),
+
+  save: (userId: string) =>
+    http
+      .post<SavedProfileResponse>(`/api/saved/${userId}`)
+      .then((r) => r.data),
+
+  remove: (id: string) => http.delete(`/api/saved/${id}`),
 };
 
 // ── Admin ─────────────────────────────────────────────────────────────────────

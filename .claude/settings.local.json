@@ -9,7 +9,8 @@
       "Bash(npm run *)",
       "Bash(docker compose *)",
       "Bash(xargs grep *)",
-      "Bash(xargs cat *)"
+      "Bash(xargs cat *)",
+      "Bash(npx tsc *)"
     ]
   }
 }

@@ -41,6 +41,7 @@ builder.Services.AddScoped<ProfileService>();
 builder.Services.AddScoped<SearchService>();
 builder.Services.AddScoped<InterestService>();
 builder.Services.AddScoped<AdminService>();
+builder.Services.AddScoped<SavedProfileService>();
 
 // ── Health checks ─────────────────────────────────────────────────────────────
 builder.Services.AddHealthChecks()
@@ -142,11 +143,14 @@ var app = builder.Build();
 
 // ── Middleware pipeline ───────────────────────────────────────────────────────
 // Order matters:
-//   1. Exception handler wraps everything below it.
-//   2. HSTS / HTTPS redirect before any response is written (prod only).
-//   3. CORS before rate-limiter so that 429 responses carry CORS headers.
-//   4. Rate-limiter before auth to reject floods without touching the DB.
-//   5. Auth / Authz last before controllers.
+//   1. CorrelationId runs first — stamps X-Correlation-ID on the response and
+//      opens a logging scope so every log line in this request carries CorrelationId.
+//   2. Exception handler wraps everything below it.
+//   3. HSTS / HTTPS redirect before any response is written (prod only).
+//   4. CORS before rate-limiter so that 429 responses carry CORS headers.
+//   5. Rate-limiter before auth to reject floods without touching the DB.
+//   6. Auth / Authz last before controllers.
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ExceptionMiddleware>();
 
 // S-4: HTTPS enforcement — production only, never in local dev

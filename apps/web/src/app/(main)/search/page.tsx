@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { searchApi, interestApi } from '@/lib/api';
+import { searchApi, interestApi, savedApi } from '@/lib/api';
 import { enumLabel, timeAgo, apiError } from '@/lib/utils';
 import Spinner from '@/components/ui/Spinner';
 import type { SearchResultItem, SearchProfilesRequest, Gender, Religion, MaritalStatus, EducationLevel } from '@/types';
@@ -29,6 +29,8 @@ export default function SearchPage() {
   const [searched, setSearched] = useState(false);
   const [sending, setSending] = useState<string | null>(null);
   const [sentSet, setSentSet] = useState<Set<string>>(new Set());
+  const [saving, setSaving] = useState<string | null>(null);
+  const [savedSet, setSavedSet] = useState<Set<string>>(new Set());
   const [searchError, setSearchError] = useState('');
   const [sendError, setSendError] = useState('');
 
@@ -72,6 +74,18 @@ export default function SearchPage() {
       setSendError(apiError(err));
     } finally {
       setSending(null);
+    }
+  };
+
+  const handleSave = async (userId: string) => {
+    setSaving(userId);
+    try {
+      await savedApi.save(userId);
+      setSavedSet((s) => new Set([...s, userId]));
+    } catch (err) {
+      setSendError(apiError(err));
+    } finally {
+      setSaving(null);
     }
   };
 
@@ -226,8 +240,11 @@ export default function SearchPage() {
                 item={item}
                 alreadySent={sentSet.has(item.userId)}
                 sending={sending === item.userId}
+                alreadySaved={savedSet.has(item.userId)}
+                saving={saving === item.userId}
                 onViewProfile={() => handleViewProfile(item)}
                 onSendInterest={() => handleSendInterest(item.userId)}
+                onSave={() => handleSave(item.userId)}
               />
             ))}
           </div>
@@ -260,14 +277,20 @@ function ProfileCard({
   item,
   alreadySent,
   sending,
+  alreadySaved,
+  saving,
   onViewProfile,
   onSendInterest,
+  onSave,
 }: {
   item: SearchResultItem;
   alreadySent: boolean;
   sending: boolean;
+  alreadySaved: boolean;
+  saving: boolean;
   onViewProfile: () => void;
   onSendInterest: () => void;
+  onSave: () => void;
 }) {
   return (
     <div className="card flex flex-col gap-3 hover:shadow-md transition-shadow">
@@ -311,8 +334,8 @@ function ProfileCard({
 
       {/* Actions */}
       <div className="flex gap-2 mt-auto pt-1">
-        <button onClick={onViewProfile} className="btn-secondary flex-1 text-xs py-1.5">
-          View Profile
+        <button onClick={onViewProfile} className="btn-secondary text-xs py-1.5 px-3">
+          View
         </button>
         <button
           onClick={onSendInterest}
@@ -320,6 +343,18 @@ function ProfileCard({
           className={`flex-1 text-xs py-1.5 ${alreadySent ? 'btn-secondary opacity-60 cursor-not-allowed' : 'btn-primary'}`}
         >
           {alreadySent ? '✓ Sent' : sending ? '…' : 'Send Interest'}
+        </button>
+        <button
+          onClick={onSave}
+          disabled={alreadySaved || saving}
+          title={alreadySaved ? 'Saved' : 'Save to shortlist'}
+          className={`text-xs py-1.5 px-2.5 rounded-lg border transition-colors ${
+            alreadySaved
+              ? 'bg-amber-50 border-amber-300 text-amber-600 cursor-not-allowed'
+              : 'bg-white border-gray-200 text-gray-500 hover:border-amber-300 hover:text-amber-600'
+          }`}
+        >
+          {saving ? '…' : alreadySaved ? '🔖' : '🔖'}
         </button>
       </div>
     </div>

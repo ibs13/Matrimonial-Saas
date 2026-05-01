@@ -11,6 +11,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ProfileIndex> ProfileIndexes => Set<ProfileIndex>();
     public DbSet<InterestRequest> InterestRequests => Set<InterestRequest>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<SavedProfile> SavedProfiles => Set<SavedProfile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -107,6 +108,28 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             entity.HasIndex(r => new { r.ReceiverId, r.Status, r.SentAt })
                   .HasDatabaseName("IX_InterestRequests_Received");
+        });
+
+        modelBuilder.Entity<SavedProfile>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+
+            entity.HasOne(s => s.User)
+                  .WithMany()
+                  .HasForeignKey(s => s.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(s => s.SavedUser)
+                  .WithMany()
+                  .HasForeignKey(s => s.SavedUserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(s => new { s.UserId, s.SavedUserId })
+                  .IsUnique()
+                  .HasDatabaseName("IX_SavedProfiles_Unique");
+
+            entity.HasIndex(s => new { s.UserId, s.SavedAt })
+                  .HasDatabaseName("IX_SavedProfiles_User");
         });
 
         modelBuilder.Entity<AuditLog>(entity =>

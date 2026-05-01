@@ -21,15 +21,20 @@ public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddlewa
         }
         catch (InvalidOperationException ex)
         {
+            logger.LogWarning("{Method} {Path} 409: {Message}",
+                context.Request.Method, context.Request.Path, ex.Message);
             await WriteError(context, HttpStatusCode.Conflict, ex.Message);
         }
         catch (UnauthorizedAccessException ex)
         {
+            logger.LogInformation("{Method} {Path} 401: {Message}",
+                context.Request.Method, context.Request.Path, ex.Message);
             await WriteError(context, HttpStatusCode.Unauthorized, ex.Message);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unhandled exception");
+            logger.LogError(ex, "Unhandled exception {Method} {Path}",
+                context.Request.Method, context.Request.Path);
             await WriteError(context, HttpStatusCode.InternalServerError, "An unexpected error occurred.");
         }
     }
