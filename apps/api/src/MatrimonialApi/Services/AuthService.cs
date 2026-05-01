@@ -72,9 +72,30 @@ public class AuthService(AppDbContext db, TokenService tokenService)
     private async Task<AuthResponse> IssueTokensAsync(User user)
     {
         var (accessToken, expiresAt) = tokenService.CreateAccessToken(user);
-        var refreshToken = tokenService.CreateRefreshToken(user.Id);
+        var newToken = tokenService.CreateRefreshToken(user.Id);
 
-        db.RefreshTokens.Add(refreshToken);
+        // Delete all expired or revoked tokens for this user in one statement.
+        // ExecuteDeleteAsync bypasses the change tracker and runs a direct DELETE.
+        await db.RefreshTokens
+            .Where(rt => rt.UserId == user.Id && (rt.IsRevoked || rt.ExpiresAt < DateTime.UtcNow))
+            .ExecuteDeleteAsync();
+
+        // After the cleanup above, every remaining row is an active session.
+        // If the user is at the cap, revoke the oldest sessions to stay within it.
+        const int MaxActiveSessions = 5;
+        var activeSessions = await db.RefreshTokens
+            .Where(rt => rt.UserId == user.Id)
+            .OrderBy(rt => rt.CreatedAt)
+            .ToListAsync();
+
+        if (activeSessions.Count >= MaxActiveSessions)
+        {
+            var excess = activeSessions.Count - MaxActiveSessions + 1; // +1 to leave room for the new token
+            foreach (var old in activeSessions.Take(excess))
+                old.IsRevoked = true;
+        }
+
+        db.RefreshTokens.Add(newToken);
 
         var index = await db.ProfileIndexes.FindAsync(user.Id);
         if (index is not null)
@@ -85,7 +106,7 @@ public class AuthService(AppDbContext db, TokenService tokenService)
         return new AuthResponse
         {
             AccessToken = accessToken,
-            RefreshToken = refreshToken.Token,
+            RefreshToken = newToken.Token,
             AccessTokenExpiresAt = expiresAt,
             Role = user.Role.ToString(),
         };
