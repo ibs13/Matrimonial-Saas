@@ -1,18 +1,32 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using MatrimonialApi.Data;
 using MatrimonialApi.Middleware;
 using MatrimonialApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ── Fail-fast: validate required secrets before any service is registered ─────
+var postgresConn = builder.Configuration.GetConnectionString("Postgres");
+if (string.IsNullOrWhiteSpace(postgresConn))
+    throw new InvalidOperationException(
+        "ConnectionStrings:Postgres is not configured. " +
+        "Set the ConnectionStrings__Postgres environment variable.");
+
+var mongoConn = builder.Configuration["MongoDB:ConnectionString"];
+if (string.IsNullOrWhiteSpace(mongoConn))
+    throw new InvalidOperationException(
+        "MongoDB:ConnectionString is not configured. " +
+        "Set the MongoDB__ConnectionString environment variable.");
+
 // ── Database ──────────────────────────────────────────────────────────────────
-builder.Services.AddDbContext<AppDbContext>(opts =>
-    opts.UseNpgsql(builder.Configuration.GetConnectionString("Postgres")));
+builder.Services.AddDbContext<AppDbContext>(opts => opts.UseNpgsql(postgresConn));
 
 // MongoDbContext is singleton — MongoClient is thread-safe and meant to be reused
 builder.Services.AddSingleton<MongoDbContext>();
@@ -27,7 +41,9 @@ builder.Services.AddScoped<AdminService>();
 
 // ── JWT Authentication ────────────────────────────────────────────────────────
 var jwtSecret = builder.Configuration["Jwt:Secret"]
-    ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
+    ?? throw new InvalidOperationException(
+        "Jwt:Secret is not configured. " +
+        "Set the Jwt__Secret environment variable (minimum 32 characters).");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opts =>
@@ -49,6 +65,35 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy("AdminOnly", p => p.RequireRole("Admin"))
     .AddPolicy("UserOrAdmin", p => p.RequireRole("User", "Admin"));
+
+// ── Rate Limiting ─────────────────────────────────────────────────────────────
+// "auth" policy: 10 requests per IP per minute, no queuing.
+// Applied to AuthController via [EnableRateLimiting("auth")].
+builder.Services.AddRateLimiter(opts =>
+{
+    opts.AddPolicy("auth", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }
+        )
+    );
+    opts.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
+
+// ── HSTS (production only) ────────────────────────────────────────────────────
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Services.AddHsts(opts =>
+    {
+        opts.IncludeSubDomains = true;
+        opts.MaxAge = TimeSpan.FromDays(365);
+    });
+}
 
 // ── Controllers & Swagger ─────────────────────────────────────────────────────
 builder.Services.AddControllers()
@@ -88,7 +133,20 @@ builder.Services.AddCors(opts =>
 var app = builder.Build();
 
 // ── Middleware pipeline ───────────────────────────────────────────────────────
+// Order matters:
+//   1. Exception handler wraps everything below it.
+//   2. HSTS / HTTPS redirect before any response is written (prod only).
+//   3. CORS before rate-limiter so that 429 responses carry CORS headers.
+//   4. Rate-limiter before auth to reject floods without touching the DB.
+//   5. Auth / Authz last before controllers.
 app.UseMiddleware<ExceptionMiddleware>();
+
+// S-4: HTTPS enforcement — production only, never in local dev
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -97,6 +155,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

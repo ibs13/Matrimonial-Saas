@@ -18,7 +18,6 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    console.log("Submitting registration with:", { email, password, confirm });
     if (password !== confirm) {
       setError("Passwords do not match.");
       return;

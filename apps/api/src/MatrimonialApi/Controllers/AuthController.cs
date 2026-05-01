@@ -2,11 +2,13 @@ using MatrimonialApi.DTOs.Auth;
 using MatrimonialApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace MatrimonialApi.Controllers;
 
 [ApiController]
 [Route("api/auth")]
+[EnableRateLimiting("auth")]
 public class AuthController(AuthService authService) : ControllerBase
 {
     [HttpPost("register")]
