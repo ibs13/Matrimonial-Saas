@@ -227,6 +227,11 @@ public class ProfileService(AppDbContext pgDb, MongoDbContext mongoDb)
 
     public async Task<ProfileResponse> SubmitForReviewAsync(Guid userId)
     {
+        var user = await pgDb.Users.FindAsync(userId);
+        if (user is null || !user.IsEmailVerified)
+            throw new InvalidOperationException(
+                "Please verify your email address before submitting your profile.");
+
         var profile = await GetOrThrowAsync(userId);
 
         if (profile.Status is not (ProfileStatus.Draft or ProfileStatus.Paused))

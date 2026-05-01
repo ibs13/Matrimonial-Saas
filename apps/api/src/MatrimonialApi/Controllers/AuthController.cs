@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using MatrimonialApi.Data;
 using MatrimonialApi.DTOs.Auth;
 using MatrimonialApi.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -9,8 +11,21 @@ namespace MatrimonialApi.Controllers;
 [ApiController]
 [Route("api/auth")]
 [EnableRateLimiting("auth")]
-public class AuthController(AuthService authService) : ControllerBase
+public class AuthController(
+    AuthService authService,
+    EmailVerificationService emailVerificationService,
+    AppDbContext db) : ControllerBase
 {
+    private Guid CurrentUserId =>
+        Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub")
+            ?? throw new UnauthorizedAccessException("User identity not found."));
+
+    private string CurrentEmail =>
+        User.FindFirstValue(ClaimTypes.Email)
+            ?? User.FindFirstValue("email")
+            ?? throw new UnauthorizedAccessException("Email claim not found.");
+
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
@@ -41,14 +56,38 @@ public class AuthController(AuthService authService) : ControllerBase
 
     [Authorize]
     [HttpGet("me")]
-    public IActionResult Me()
+    public async Task<IActionResult> Me()
     {
-        var id = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-               ?? User.FindFirst("sub")?.Value;
-        var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
-                  ?? User.FindFirst("email")?.Value;
-        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
-        return Ok(new { id, email, role });
+        var user = await db.Users.FindAsync(CurrentUserId);
+        if (user is null) return Unauthorized();
+
+        return Ok(new
+        {
+            id = CurrentUserId.ToString(),
+            email = user.Email,
+            role = User.FindFirstValue(ClaimTypes.Role),
+            isEmailVerified = user.IsEmailVerified,
+        });
+    }
+
+    // GET /api/auth/verify-email?token=xxx
+    [HttpGet("verify-email")]
+    public async Task<IActionResult> VerifyEmail([FromQuery] string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return BadRequest(new { error = "Token is required." });
+
+        await emailVerificationService.VerifyAsync(token);
+        return Ok(new { message = "Email verified successfully." });
+    }
+
+    // POST /api/auth/resend-verification
+    [Authorize]
+    [HttpPost("resend-verification")]
+    public async Task<IActionResult> ResendVerification()
+    {
+        await emailVerificationService.ResendAsync(CurrentUserId, CurrentEmail);
+        return Ok(new { message = "Verification email sent." });
     }
 
     [Authorize(Roles = "Admin")]

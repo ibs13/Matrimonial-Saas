@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using MatrimonialApi;
 using MatrimonialApi.Data;
+using MatrimonialApi.Email;
 using MatrimonialApi.Middleware;
 using MatrimonialApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -43,6 +44,14 @@ builder.Services.AddScoped<InterestService>();
 builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<SavedProfileService>();
 builder.Services.AddScoped<ReportService>();
+builder.Services.AddScoped<EmailVerificationService>();
+
+// Email delivery: DevEmailSender logs the verification link to the console (no real email sent).
+// Replace with SendGrid, SES, Postmark, etc. in production by implementing IEmailSender.
+if (builder.Environment.IsDevelopment())
+    builder.Services.AddSingleton<IEmailSender, DevEmailSender>();
+else
+    builder.Services.AddSingleton<IEmailSender, NoOpEmailSender>();
 
 // ── Health checks ─────────────────────────────────────────────────────────────
 builder.Services.AddHealthChecks()

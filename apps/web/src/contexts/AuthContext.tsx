@@ -9,9 +9,11 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isEmailVerified: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -78,9 +80,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         isAdmin: user?.role === 'Admin',
+        isEmailVerified: user?.isEmailVerified ?? false,
         login,
         register,
         logout,
+        refreshUser: loadUser,
       }}
     >
       {children}

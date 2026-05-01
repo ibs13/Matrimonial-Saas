@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MatrimonialApi.Services;
 
-public class AuthService(AppDbContext db, TokenService tokenService)
+public class AuthService(AppDbContext db, TokenService tokenService, EmailVerificationService emailVerificationService)
 {
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
     {
@@ -21,6 +21,10 @@ public class AuthService(AppDbContext db, TokenService tokenService)
 
         db.Users.Add(user);
         await db.SaveChangesAsync();
+
+        // Fire-and-forget is avoided: await so the token is committed before returning.
+        // Registration still succeeds if email delivery fails (NoOpEmailSender won't throw).
+        await emailVerificationService.GenerateAndSendAsync(user.Id, user.Email);
 
         return await IssueTokensAsync(user);
     }
@@ -109,6 +113,7 @@ public class AuthService(AppDbContext db, TokenService tokenService)
             RefreshToken = newToken.Token,
             AccessTokenExpiresAt = expiresAt,
             Role = user.Role.ToString(),
+            IsEmailVerified = user.IsEmailVerified,
         };
     }
 }

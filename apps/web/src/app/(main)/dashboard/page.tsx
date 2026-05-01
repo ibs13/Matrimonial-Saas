@@ -3,13 +3,13 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { profileApi, interestApi } from '@/lib/api';
+import { profileApi, interestApi, authApi } from '@/lib/api';
 import { statusBadgeClass, enumLabel, formatDate, apiError } from '@/lib/utils';
 import Spinner from '@/components/ui/Spinner';
 import type { ProfileResponse, InterestListResponse } from '@/types';
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, isEmailVerified, refreshUser } = useAuth();
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [sent, setSent] = useState<InterestListResponse | null>(null);
   const [received, setReceived] = useState<InterestListResponse | null>(null);
@@ -44,6 +44,11 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Email verification banner */}
+      {!isEmailVerified && (
+        <EmailVerificationBanner onResent={refreshUser} />
+      )}
+
       {/* Welcome */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">
@@ -299,6 +304,48 @@ function QuickAction({ href, emoji, label }: { href: string; emoji: string; labe
       <span className="text-2xl">{emoji}</span>
       <span className="text-xs font-medium text-gray-700 group-hover:text-primary-700">{label}</span>
     </Link>
+  );
+}
+
+function EmailVerificationBanner({ onResent: _onResent }: { onResent: () => Promise<void> }) {
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleResend = async () => {
+    setSending(true);
+    setError('');
+    try {
+      await authApi.resendVerification();
+      setSent(true);
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+      <span className="text-2xl flex-shrink-0">📧</span>
+      <div className="flex-1">
+        <h3 className="font-semibold text-amber-900 text-sm">Verify your email address</h3>
+        <p className="text-amber-800 text-xs mt-0.5">
+          Check your inbox for a verification link. You must verify your email before submitting your profile for review.
+        </p>
+        {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+        {sent && <p className="text-xs text-green-700 mt-1">Verification email sent — check your inbox.</p>}
+      </div>
+      {!sent && (
+        <button
+          onClick={handleResend}
+          disabled={sending}
+          className="btn-secondary text-xs py-1.5 px-3 flex-shrink-0"
+        >
+          {sending ? 'Sending…' : 'Resend email'}
+        </button>
+      )}
+    </div>
   );
 }
 

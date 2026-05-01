@@ -13,6 +13,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<SavedProfile> SavedProfiles => Set<SavedProfile>();
     public DbSet<ProfileReport> ProfileReports => Set<ProfileReport>();
+    public DbSet<EmailVerificationToken> EmailVerificationTokens => Set<EmailVerificationToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -131,6 +132,27 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             entity.HasIndex(s => new { s.UserId, s.SavedAt })
                   .HasDatabaseName("IX_SavedProfiles_User");
+        });
+
+        modelBuilder.Entity<EmailVerificationToken>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+
+            entity.HasOne(t => t.User)
+                  .WithMany()
+                  .HasForeignKey(t => t.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(t => t.TokenHash).HasMaxLength(64).IsRequired();
+
+            // Lookup by hash on verify: must be unique and fast
+            entity.HasIndex(t => t.TokenHash)
+                  .IsUnique()
+                  .HasDatabaseName("IX_EmailVerificationTokens_Hash");
+
+            // Cleanup query: find active tokens for a user
+            entity.HasIndex(t => new { t.UserId, t.UsedAt, t.ExpiresAt })
+                  .HasDatabaseName("IX_EmailVerificationTokens_User");
         });
 
         modelBuilder.Entity<ProfileReport>(entity =>

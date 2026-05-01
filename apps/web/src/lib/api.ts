@@ -109,6 +109,16 @@ export const authApi = {
     http.post("/api/auth/logout", { refreshToken }),
 
   me: () => http.get<MeResponse>("/api/auth/me").then((r) => r.data),
+
+  verifyEmail: (token: string) =>
+    http
+      .get<{ message: string }>("/api/auth/verify-email", { params: { token } })
+      .then((r) => r.data),
+
+  resendVerification: () =>
+    http
+      .post<{ message: string }>("/api/auth/resend-verification")
+      .then((r) => r.data),
 };
 
 // ── Profile ───────────────────────────────────────────────────────────────────

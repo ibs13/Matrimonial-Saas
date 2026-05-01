@@ -24,12 +24,14 @@ export interface AuthResponse {
   refreshToken: string;
   accessTokenExpiresAt: string;
   role: string;
+  isEmailVerified: boolean;
 }
 
 export interface MeResponse {
   id: string;
   email: string;
   role: string;
+  isEmailVerified: boolean;
 }
 
 // ── Profile ───────────────────────────────────────────────────────────────────
