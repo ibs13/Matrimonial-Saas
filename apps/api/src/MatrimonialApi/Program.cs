@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using MatrimonialApi.Data;
 using MatrimonialApi.Middleware;
 using MatrimonialApi.Services;
@@ -50,7 +51,9 @@ builder.Services.AddAuthorizationBuilder()
     .AddPolicy("UserOrAdmin", p => p.RequireRole("User", "Admin"));
 
 // ── Controllers & Swagger ─────────────────────────────────────────────────────
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(opts =>
+        opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
