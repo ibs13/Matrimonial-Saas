@@ -83,12 +83,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasOne(r => r.Sender)
                   .WithMany()
                   .HasForeignKey(r => r.SenderId)
-                  .OnDelete(DeleteBehavior.Cascade);
+                  .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(r => r.Receiver)
                   .WithMany()
                   .HasForeignKey(r => r.ReceiverId)
-                  .OnDelete(DeleteBehavior.Cascade);
+                  .OnDelete(DeleteBehavior.Restrict);
 
             entity.Property(r => r.Status)
                   .HasConversion<string>()

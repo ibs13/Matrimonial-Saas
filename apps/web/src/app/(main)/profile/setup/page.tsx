@@ -14,7 +14,7 @@ import LifestyleStep from '@/components/profile/steps/LifestyleStep';
 import PartnerExpectationsStep from '@/components/profile/steps/PartnerExpectationsStep';
 import ContactStep from '@/components/profile/steps/ContactStep';
 import VisibilityStep from '@/components/profile/steps/VisibilityStep';
-import { statusBadgeClass, enumLabel } from '@/lib/utils';
+import { statusBadgeClass, enumLabel, apiError } from '@/lib/utils';
 import type { ProfileResponse } from '@/types';
 
 const STEPS = [
@@ -38,6 +38,7 @@ export default function ProfileSetupPage() {
   const [initializing, setInitializing] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [initError, setInitError] = useState('');
 
   useEffect(() => {
     profileApi.getMe().then(setProfile).catch(async (e) => {
@@ -47,6 +48,8 @@ export default function ProfileSetupPage() {
         try {
           const created = await profileApi.create();
           setProfile(created);
+        } catch (createErr) {
+          setInitError(apiError(createErr));
         } finally {
           setInitializing(false);
         }
@@ -73,6 +76,19 @@ export default function ProfileSetupPage() {
       <div className="flex flex-col items-center justify-center py-16 gap-3">
         <Spinner size="lg" />
         <p className="text-gray-500 text-sm">{initializing ? 'Setting up your profile…' : 'Loading…'}</p>
+      </div>
+    );
+  }
+
+  if (initError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-3">
+        <p className="text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm">
+          Failed to set up your profile: {initError}
+        </p>
+        <button onClick={() => window.location.reload()} className="btn-secondary text-sm">
+          Try again
+        </button>
       </div>
     );
   }

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { profileApi, interestApi } from '@/lib/api';
-import { statusBadgeClass, enumLabel, formatDate } from '@/lib/utils';
+import { statusBadgeClass, enumLabel, formatDate, apiError } from '@/lib/utils';
 import Spinner from '@/components/ui/Spinner';
 import type { ProfileResponse, InterestListResponse } from '@/types';
 
@@ -304,20 +304,27 @@ function QuickAction({ href, emoji, label }: { href: string; emoji: string; labe
 
 function SubmitButton({ onSuccess }: { onSuccess: () => void }) {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async () => {
     setLoading(true);
+    setError('');
     try {
       await profileApi.submitForReview();
       onSuccess();
+    } catch (err) {
+      setError(apiError(err));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <button onClick={handleSubmit} className="btn-primary" disabled={loading}>
-      {loading ? 'Submitting…' : 'Submit for Review'}
-    </button>
+    <div className="flex flex-col items-end gap-1">
+      <button onClick={handleSubmit} className="btn-primary" disabled={loading}>
+        {loading ? 'Submitting…' : 'Submit for Review'}
+      </button>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+    </div>
   );
 }
