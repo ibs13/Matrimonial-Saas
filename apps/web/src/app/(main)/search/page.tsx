@@ -1,22 +1,32 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { searchApi, interestApi, savedApi } from '@/lib/api';
 import { enumLabel, timeAgo, apiError } from '@/lib/utils';
 import Spinner from '@/components/ui/Spinner';
-import type { SearchResultItem, SearchProfilesRequest, Gender, Religion, MaritalStatus, EducationLevel } from '@/types';
+import type {
+  SearchResultItem,
+  SearchProfilesRequest,
+  Gender,
+  Religion,
+  MaritalStatus,
+  EducationLevel,
+  EmploymentType,
+} from '@/types';
 
 const GENDERS: Gender[] = ['Male', 'Female'];
 const RELIGIONS: Religion[] = ['Islam', 'Hinduism', 'Christianity', 'Buddhism', 'Other'];
-const EDUCATION_LEVELS: EducationLevel[] = ['BelowSSC', 'SSC', 'HSC', 'Diploma', 'Bachelor', 'Masters', 'PhD', 'PostDoc'];
 const MARITAL_STATUSES: MaritalStatus[] = ['NeverMarried', 'Divorced', 'Widowed', 'Separated'];
+const EDUCATION_LEVELS: EducationLevel[] = ['BelowSSC', 'SSC', 'HSC', 'Diploma', 'Bachelor', 'Masters', 'PhD', 'PostDoc'];
+const EMPLOYMENT_TYPES: EmploymentType[] = ['Employed', 'SelfEmployed', 'BusinessOwner', 'Student', 'Unemployed'];
 
 const defaultFilters: SearchProfilesRequest = {
   sortBy: 'LastActive',
   page: 1,
   pageSize: 20,
+  maritalStatuses: [],
+  employmentTypes: [],
 };
 
 export default function SearchPage() {
@@ -97,6 +107,44 @@ export default function SearchPage() {
   const set = (key: keyof SearchProfilesRequest, value: unknown) =>
     setFilters((f) => ({ ...f, [key]: value || undefined }));
 
+  const toggleMaritalStatus = (v: MaritalStatus) =>
+    setFilters((f) => {
+      const cur = f.maritalStatuses ?? [];
+      return {
+        ...f,
+        maritalStatuses: cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v],
+      };
+    });
+
+  const toggleEmploymentType = (v: EmploymentType) =>
+    setFilters((f) => {
+      const cur = f.employmentTypes ?? [];
+      return {
+        ...f,
+        employmentTypes: cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v],
+      };
+    });
+
+  const handleClear = () => {
+    setFilters(defaultFilters);
+    setResults([]);
+    setSearched(false);
+    setSearchError('');
+  };
+
+  const activeFilterCount = [
+    filters.gender,
+    filters.religion,
+    filters.ageMin,
+    filters.ageMax,
+    filters.countryOfResidence,
+    filters.division,
+    filters.district,
+    filters.minEducationLevel,
+  ].filter(Boolean).length
+    + (filters.maritalStatuses?.length ?? 0)
+    + (filters.employmentTypes?.length ?? 0);
+
   return (
     <div className="space-y-6">
       <div>
@@ -104,13 +152,26 @@ export default function SearchPage() {
         <p className="text-gray-500 mt-1">Search from active profiles below.</p>
       </div>
 
-      {/* Filters */}
-      <form onSubmit={handleSearch} className="card">
-        <h2 className="font-semibold text-gray-700 mb-4">Filters</h2>
+      {/* Filter form */}
+      <form onSubmit={handleSearch} className="card space-y-5">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-gray-700">Filters</h2>
+          {activeFilterCount > 0 && (
+            <span className="text-xs bg-primary-100 text-primary-700 font-medium px-2 py-0.5 rounded-full">
+              {activeFilterCount} active
+            </span>
+          )}
+        </div>
+
+        {/* Core single-value filters */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           <div>
             <label className="label">Looking for</label>
-            <select className="input" value={filters.gender ?? ''} onChange={(e) => set('gender', e.target.value)}>
+            <select
+              className="input"
+              value={filters.gender ?? ''}
+              onChange={(e) => set('gender', e.target.value)}
+            >
               <option value="">Any gender</option>
               {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
             </select>
@@ -118,14 +179,18 @@ export default function SearchPage() {
 
           <div>
             <label className="label">Religion</label>
-            <select className="input" value={filters.religion ?? ''} onChange={(e) => set('religion', e.target.value)}>
+            <select
+              className="input"
+              value={filters.religion ?? ''}
+              onChange={(e) => set('religion', e.target.value)}
+            >
               <option value="">Any religion</option>
               {RELIGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
 
           <div>
-            <label className="label">Age min</label>
+            <label className="label">Age from</label>
             <input
               type="number" min={18} max={80} className="input"
               value={filters.ageMin ?? ''}
@@ -135,21 +200,13 @@ export default function SearchPage() {
           </div>
 
           <div>
-            <label className="label">Age max</label>
+            <label className="label">Age to</label>
             <input
               type="number" min={18} max={80} className="input"
               value={filters.ageMax ?? ''}
               onChange={(e) => set('ageMax', e.target.value ? parseInt(e.target.value) : undefined)}
               placeholder="60"
             />
-          </div>
-
-          <div>
-            <label className="label">Min Education</label>
-            <select className="input" value={filters.minEducationLevel ?? ''} onChange={(e) => set('minEducationLevel', e.target.value)}>
-              <option value="">Any level</option>
-              {EDUCATION_LEVELS.map((l) => <option key={l} value={l}>{enumLabel(l)}</option>)}
-            </select>
           </div>
 
           <div>
@@ -173,28 +230,82 @@ export default function SearchPage() {
           </div>
 
           <div>
+            <label className="label">District</label>
+            <input
+              type="text" className="input"
+              value={filters.district ?? ''}
+              onChange={(e) => set('district', e.target.value)}
+              placeholder="e.g. Gazipur"
+            />
+          </div>
+
+          <div>
+            <label className="label">Min Education</label>
+            <select
+              className="input"
+              value={filters.minEducationLevel ?? ''}
+              onChange={(e) => set('minEducationLevel', e.target.value)}
+            >
+              <option value="">Any level</option>
+              {EDUCATION_LEVELS.map((l) => <option key={l} value={l}>{enumLabel(l)}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Marital status checkboxes */}
+        <div>
+          <p className="label mb-2">Marital status</p>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            {MARITAL_STATUSES.map((ms) => (
+              <label key={ms} className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  checked={filters.maritalStatuses?.includes(ms) ?? false}
+                  onChange={() => toggleMaritalStatus(ms)}
+                />
+                <span className="text-sm text-gray-700">{enumLabel(ms)}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Employment type checkboxes */}
+        <div>
+          <p className="label mb-2">Employment status</p>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            {EMPLOYMENT_TYPES.map((et) => (
+              <label key={et} className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  checked={filters.employmentTypes?.includes(et) ?? false}
+                  onChange={() => toggleEmploymentType(et)}
+                />
+                <span className="text-sm text-gray-700">{enumLabel(et)}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Sort + actions */}
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="w-40">
             <label className="label">Sort by</label>
             <select
               className="input"
               value={filters.sortBy ?? 'LastActive'}
               onChange={(e) => set('sortBy', e.target.value)}
             >
-              <option value="LastActive">Last Active</option>
+              <option value="LastActive">Recently active</option>
               <option value="Newest">Newest</option>
-              <option value="Completion">Completion</option>
+              <option value="Completion">Most complete</option>
             </select>
           </div>
-        </div>
-
-        <div className="mt-4 flex gap-3">
           <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? 'Searching…' : 'Search'}
           </button>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => { setFilters(defaultFilters); setResults([]); setSearched(false); }}
-          >
+          <button type="button" className="btn-secondary" onClick={handleClear}>
             Clear
           </button>
         </div>
@@ -231,7 +342,7 @@ export default function SearchPage() {
       {!loading && results.length > 0 && (
         <>
           <p className="text-sm text-gray-500">
-            Showing {results.length} of {totalCount} profiles
+            Showing {results.length} of {totalCount} profile{totalCount !== 1 ? 's' : ''}
           </p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {results.map((item) => (
@@ -249,22 +360,25 @@ export default function SearchPage() {
             ))}
           </div>
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex justify-center gap-2 mt-6">
-              {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => i + 1).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => handlePage(p)}
-                  className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
-                    p === (filters.page ?? 1)
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
+              <button
+                onClick={() => handlePage((filters.page ?? 1) - 1)}
+                disabled={(filters.page ?? 1) <= 1}
+                className="btn-secondary text-sm py-1.5 px-3 disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <span className="flex items-center text-sm text-gray-600 px-2">
+                Page {filters.page ?? 1} of {totalPages}
+              </span>
+              <button
+                onClick={() => handlePage((filters.page ?? 1) + 1)}
+                disabled={(filters.page ?? 1) >= totalPages}
+                className="btn-secondary text-sm py-1.5 px-3 disabled:opacity-40"
+              >
+                Next
+              </button>
             </div>
           )}
         </>
@@ -297,10 +411,12 @@ function ProfileCard({
       {/* Avatar */}
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-full bg-primary-100 text-primary-600 font-bold text-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
-          {item.photoUrl
-            ? <img src={item.photoUrl} alt={item.displayName} className="w-full h-full object-cover" />
-            : (item.displayName?.[0]?.toUpperCase() ?? '?')
-          }
+          {item.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={item.photoUrl} alt={item.displayName} className="w-full h-full object-cover" />
+          ) : (
+            item.displayName?.[0]?.toUpperCase() ?? '?'
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-900 truncate">{item.displayName}</p>
@@ -315,12 +431,18 @@ function ProfileCard({
       {/* Details */}
       <div className="grid grid-cols-2 gap-1.5 text-xs text-gray-600">
         {item.religion && <Detail emoji="🕌" text={item.religion} />}
-        {item.countryOfResidence && <Detail emoji="📍" text={item.division ? `${item.division}, ${item.countryOfResidence}` : item.countryOfResidence} />}
+        {(item.division || item.countryOfResidence) && (
+          <Detail
+            emoji="📍"
+            text={[item.division, item.district, item.countryOfResidence].filter(Boolean).join(', ')}
+          />
+        )}
         {item.educationLevel && <Detail emoji="🎓" text={enumLabel(item.educationLevel)} />}
         {item.maritalStatus && <Detail emoji="💒" text={enumLabel(item.maritalStatus)} />}
+        {item.employmentType && <Detail emoji="💼" text={enumLabel(item.employmentType)} />}
       </div>
 
-      {/* Completion */}
+      {/* Completion bar */}
       <div className="flex items-center gap-2">
         <div className="flex-1 h-1.5 bg-gray-100 rounded-full">
           <div
@@ -357,7 +479,7 @@ function ProfileCard({
               : 'bg-white border-gray-200 text-gray-500 hover:border-amber-300 hover:text-amber-600'
           }`}
         >
-          {saving ? '…' : alreadySaved ? '🔖' : '🔖'}
+          {saving ? '…' : '🔖'}
         </button>
       </div>
     </div>
@@ -372,3 +494,4 @@ function Detail({ emoji, text }: { emoji: string; text: string }) {
     </span>
   );
 }
+
