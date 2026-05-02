@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using MatrimonialApi.Exceptions;
 
 namespace MatrimonialApi.Middleware;
 
@@ -10,6 +11,12 @@ public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddlewa
         try
         {
             await next(context);
+        }
+        catch (PlanLimitExceededException ex)
+        {
+            logger.LogInformation("{Method} {Path} 429: {Message}",
+                context.Request.Method, context.Request.Path, ex.Message);
+            await WriteError(context, HttpStatusCode.TooManyRequests, ex.Message, "MONTHLY_LIMIT_EXCEEDED");
         }
         catch (KeyNotFoundException ex)
         {
@@ -39,11 +46,13 @@ public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddlewa
         }
     }
 
-    private static Task WriteError(HttpContext context, HttpStatusCode status, string message)
+    private static Task WriteError(HttpContext context, HttpStatusCode status, string message, string? code = null)
     {
         context.Response.StatusCode = (int)status;
         context.Response.ContentType = "application/json";
-        var body = JsonSerializer.Serialize(new { error = message });
+        var body = code is not null
+            ? JsonSerializer.Serialize(new { error = message, code })
+            : JsonSerializer.Serialize(new { error = message });
         return context.Response.WriteAsync(body);
     }
 }

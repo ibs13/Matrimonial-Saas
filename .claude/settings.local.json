@@ -14,7 +14,10 @@
       "Bash(Remove-Item *)",
       "Bash(Get-ChildItem -Path \"D:\\\\Project\\\\matrimonial-saas\" -Directory)",
       "Bash(Select-Object Name)",
-      "PowerShell(cd D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web; npx eslint src/app/\\\\\\(main\\\\\\)/dashboard/page.tsx src/types/index.ts --max-warnings=0 2>&1 | Select-Object -Last 20)"
+      "PowerShell(cd D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web; npx eslint src/app/\\\\\\(main\\\\\\)/dashboard/page.tsx src/types/index.ts --max-warnings=0 2>&1 | Select-Object -Last 20)",
+      "Bash(New-Item -ItemType Directory -Force \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\api\\\\src\\\\MatrimonialApi\\\\Exceptions\")",
+      "Bash(Out-Null)",
+      "Bash(Write-Output \"done\")"
     ]
   }
 }

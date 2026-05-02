@@ -410,10 +410,12 @@ const PLAN_BADGE: Record<MembershipPlan, string> = {
 function MembershipCard({ membership }: { membership: UserMembershipResponse }) {
   const plan = membership.plan as MembershipPlan;
   const isUnlimited = membership.monthlyInterestLimit === -1;
+  const remaining = membership.remainingInterests ?? null;
+  const atLimit = !isUnlimited && remaining === 0;
   const pct = isUnlimited
     ? 100
     : Math.min(100, Math.round((membership.interestsSentThisMonth / membership.monthlyInterestLimit) * 100));
-  const nearLimit = !isUnlimited && pct >= 80;
+  const nearLimit = !isUnlimited && !atLimit && pct >= 80;
 
   return (
     <div className="card">
@@ -426,7 +428,7 @@ function MembershipCard({ membership }: { membership: UserMembershipResponse }) 
       <div className="mb-4">
         <div className="flex justify-between text-sm text-gray-600 mb-1">
           <span>Interests sent this month</span>
-          <span className={`font-medium ${nearLimit ? 'text-amber-600' : ''}`}>
+          <span className={`font-medium ${atLimit ? 'text-red-600' : nearLimit ? 'text-amber-600' : ''}`}>
             {isUnlimited
               ? `${membership.interestsSentThisMonth} / Unlimited`
               : `${membership.interestsSentThisMonth} / ${membership.monthlyInterestLimit}`}
@@ -434,16 +436,32 @@ function MembershipCard({ membership }: { membership: UserMembershipResponse }) 
         </div>
         <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
           <div
-            className={`h-2 rounded-full transition-all ${nearLimit ? 'bg-amber-400' : 'bg-primary-500'}`}
+            className={`h-2 rounded-full transition-all ${atLimit ? 'bg-red-500' : nearLimit ? 'bg-amber-400' : 'bg-primary-500'}`}
             style={{ width: `${pct}%` }}
           />
         </div>
-        {nearLimit && !isUnlimited && (
-          <p className="text-xs text-amber-600 mt-1">
-            Almost at your monthly limit — upgrade to send more.
+        {!isUnlimited && (
+          <p className={`text-xs mt-1 ${atLimit ? 'text-red-600 font-medium' : nearLimit ? 'text-amber-600' : 'text-gray-500'}`}>
+            {atLimit
+              ? 'No interests remaining this month'
+              : nearLimit
+              ? `${remaining} remaining — almost at your limit`
+              : `${remaining} remaining this month`}
           </p>
         )}
       </div>
+
+      {/* Upgrade CTA when at limit */}
+      {atLimit && (
+        <div className="mb-4 rounded-lg bg-rose-50 border border-rose-200 px-4 py-3 flex items-center justify-between gap-3">
+          <p className="text-sm text-rose-700 font-medium">
+            You&apos;ve used all interests for this month. Upgrade to send more.
+          </p>
+          <Link href="/membership" className="btn-primary text-xs py-1.5 px-3 flex-shrink-0">
+            Upgrade plan
+          </Link>
+        </div>
+      )}
 
       {/* Feature flags */}
       <div className="grid grid-cols-3 gap-2 text-xs text-center mb-4">
@@ -453,7 +471,7 @@ function MembershipCard({ membership }: { membership: UserMembershipResponse }) 
       </div>
 
       <Link href="/membership" className="btn-secondary text-sm">
-        {plan === 'Free' ? 'View plans' : 'Manage plan'}
+        {plan === 'Free' || atLimit ? 'View plans' : 'Manage plan'}
       </Link>
     </div>
   );

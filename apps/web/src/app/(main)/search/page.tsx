@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { searchApi, interestApi, savedApi } from '@/lib/api';
 import { enumLabel, timeAgo, apiError } from '@/lib/utils';
@@ -43,6 +44,7 @@ export default function SearchPage() {
   const [savedSet, setSavedSet] = useState<Set<string>>(new Set());
   const [searchError, setSearchError] = useState('');
   const [sendError, setSendError] = useState('');
+  const [limitReached, setLimitReached] = useState(false);
 
   const doSearch = useCallback(async (f: SearchProfilesRequest) => {
     setLoading(true);
@@ -77,11 +79,17 @@ export default function SearchPage() {
   const handleSendInterest = async (userId: string) => {
     setSending(userId);
     setSendError('');
+    setLimitReached(false);
     try {
       await interestApi.send({ receiverId: userId });
       setSentSet((s) => new Set([...s, userId]));
-    } catch (err) {
-      setSendError(apiError(err));
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 429) {
+        setLimitReached(true);
+      } else {
+        setSendError(apiError(err));
+      }
     } finally {
       setSending(null);
     }
@@ -314,6 +322,19 @@ export default function SearchPage() {
       {searchError && (
         <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
           Search failed: {searchError}
+        </div>
+      )}
+
+      {limitReached && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-amber-800">Monthly interest limit reached</p>
+            <p className="text-xs text-amber-700 mt-0.5">Upgrade your plan to send more interests this month.</p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Link href="/membership" className="btn-primary text-xs py-1.5 px-3">Upgrade plan</Link>
+            <button onClick={() => setLimitReached(false)} className="text-amber-500 hover:text-amber-700 font-medium">✕</button>
+          </div>
         </div>
       )}
 

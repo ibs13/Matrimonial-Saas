@@ -1,5 +1,6 @@
 using MatrimonialApi.Data;
 using MatrimonialApi.DTOs.Interest;
+using MatrimonialApi.Exceptions;
 using MatrimonialApi.Models;
 using MatrimonialApi.Models.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -17,7 +18,7 @@ public class InterestService(AppDbContext pgDb, MembershipService membershipServ
 
         var withinLimit = await membershipService.CanSendInterestThisMonthAsync(senderId);
         if (!withinLimit)
-            throw new InvalidOperationException(
+            throw new PlanLimitExceededException(
                 "You have reached your monthly interest limit. Upgrade your plan to send more.");
 
         // Receiver must have an active profile

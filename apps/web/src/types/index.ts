@@ -424,6 +424,8 @@ export interface UserMembershipResponse {
   /** -1 means unlimited */
   monthlyInterestLimit: number;
   interestsSentThisMonth: number;
+  /** null when plan has unlimited interests */
+  remainingInterests?: number | null;
   advancedSearch: boolean;
   profileBoost: boolean;
   contactUnlock: boolean;

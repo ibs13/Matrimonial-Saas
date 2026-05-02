@@ -57,6 +57,9 @@ public class MembershipService(AppDbContext pgDb)
             ExpiresAt = membership?.ExpiresAt,
             MonthlyInterestLimit = def.MonthlyInterestLimit,
             InterestsSentThisMonth = sentThisMonth,
+            RemainingInterests = def.MonthlyInterestLimit == -1
+                ? null
+                : Math.Max(0, def.MonthlyInterestLimit - sentThisMonth),
             AdvancedSearch = def.AdvancedSearch,
             ProfileBoost = def.ProfileBoost,
             ContactUnlock = def.ContactUnlock,
