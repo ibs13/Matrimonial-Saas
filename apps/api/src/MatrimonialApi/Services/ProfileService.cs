@@ -213,6 +213,11 @@ public class ProfileService(AppDbContext pgDb, MongoDbContext mongoDb, IPhotoSto
     {
         var profile = await GetOrThrowAsync(userId);
 
+        if (req.ProfileVisible && !ProfileCompletionService.CanBePublic(profile.CompletionPercentage))
+            throw new InvalidOperationException(
+                $"Profile must be at least {ProfileCompletionService.MinVisibilityPercentage}% complete to be made publicly visible. " +
+                $"Current completion: {profile.CompletionPercentage}%.");
+
         profile.Visibility = new ProfileVisibility
         {
             ShowFullName = req.ShowFullName,
@@ -320,6 +325,16 @@ public class ProfileService(AppDbContext pgDb, MongoDbContext mongoDb, IPhotoSto
             throw new InvalidOperationException(
                 $"Profile must be at least {ProfileCompletionService.MinSubmitPercentage}% complete to submit. " +
                 $"Current completion: {profile.CompletionPercentage}%.");
+
+        var missingRequired = ProfileCompletionService.GetMissingFields(profile)
+            .Where(f => f.IsRequired)
+            .ToList();
+        if (missingRequired.Count > 0)
+        {
+            var labels = string.Join(", ", missingRequired.Select(f => f.Label));
+            throw new InvalidOperationException(
+                $"Required fields are missing: {labels}. Please complete these before submitting.");
+        }
 
         profile.Status = ProfileStatus.PendingReview;
         return await SaveAsync(profile);
@@ -448,6 +463,7 @@ public class ProfileService(AppDbContext pgDb, MongoDbContext mongoDb, IPhotoSto
         PartnerExpectations = p.PartnerExpectations,
         Photos = p.Photos,
         Contact = p.Contact,
+        MissingFields = ProfileCompletionService.GetMissingFields(p),
         CreatedAt = p.CreatedAt,
         UpdatedAt = p.UpdatedAt,
         LastActiveAt = p.LastActiveAt,

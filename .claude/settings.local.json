@@ -11,7 +11,10 @@
       "Bash(xargs grep *)",
       "Bash(xargs cat *)",
       "Bash(npx tsc *)",
-      "Bash(Remove-Item *)"
+      "Bash(Remove-Item *)",
+      "Bash(Get-ChildItem -Path \"D:\\\\Project\\\\matrimonial-saas\" -Directory)",
+      "Bash(Select-Object Name)",
+      "PowerShell(cd D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web; npx eslint src/app/\\\\\\(main\\\\\\)/dashboard/page.tsx src/types/index.ts --max-warnings=0 2>&1 | Select-Object -Last 20)"
     ]
   }
 }

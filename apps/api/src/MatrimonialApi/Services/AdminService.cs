@@ -77,7 +77,18 @@ public class AdminService(AppDbContext pgDb, MongoDbContext mongoDb)
             throw new InvalidOperationException(
                 $"Profile must be in PendingReview to approve. Current status: {profile.Status}.");
 
-        return await ApplyStatusChangeAsync(adminId, adminEmail, profile, ProfileStatus.Active, "ApproveProfile", reason: null);
+        var result = await ApplyStatusChangeAsync(adminId, adminEmail, profile, ProfileStatus.Active, "ApproveProfile", reason: null);
+
+        pgDb.Notifications.Add(new Notification
+        {
+            UserId = profileId,
+            Type = NotificationType.ProfileApproved,
+            Title = "Profile approved",
+            Body = "Your profile has been approved and is now live.",
+        });
+        await pgDb.SaveChangesAsync();
+
+        return result;
     }
 
     // ── Reject ────────────────────────────────────────────────────────────────
@@ -91,7 +102,20 @@ public class AdminService(AppDbContext pgDb, MongoDbContext mongoDb)
             throw new InvalidOperationException(
                 $"Profile must be in PendingReview to reject. Current status: {profile.Status}.");
 
-        return await ApplyStatusChangeAsync(adminId, adminEmail, profile, ProfileStatus.Draft, "RejectProfile", reason);
+        var result = await ApplyStatusChangeAsync(adminId, adminEmail, profile, ProfileStatus.Draft, "RejectProfile", reason);
+
+        pgDb.Notifications.Add(new Notification
+        {
+            UserId = profileId,
+            Type = NotificationType.ProfileRejected,
+            Title = "Profile not approved",
+            Body = string.IsNullOrWhiteSpace(reason)
+                ? "Your profile was not approved. Please review and resubmit."
+                : $"Your profile was not approved: {reason}",
+        });
+        await pgDb.SaveChangesAsync();
+
+        return result;
     }
 
     // ── Suspend ───────────────────────────────────────────────────────────────
@@ -176,8 +200,16 @@ public class AdminService(AppDbContext pgDb, MongoDbContext mongoDb)
                 EntityId = profileUserId,
                 CreatedAt = DateTime.UtcNow,
             });
-            await pgDb.SaveChangesAsync();
         }
+
+        pgDb.Notifications.Add(new Notification
+        {
+            UserId = profileUserId,
+            Type = NotificationType.PhotoApproved,
+            Title = "Photo approved",
+            Body = "Your profile photo has been approved.",
+        });
+        await pgDb.SaveChangesAsync();
     }
 
     public async Task RejectPhotoAsync(Guid adminId, string adminEmail, Guid profileUserId, string reason)
@@ -205,8 +237,18 @@ public class AdminService(AppDbContext pgDb, MongoDbContext mongoDb)
                 Reason = reason,
                 CreatedAt = DateTime.UtcNow,
             });
-            await pgDb.SaveChangesAsync();
         }
+
+        pgDb.Notifications.Add(new Notification
+        {
+            UserId = profileUserId,
+            Type = NotificationType.PhotoRejected,
+            Title = "Photo not approved",
+            Body = string.IsNullOrWhiteSpace(reason)
+                ? "Your profile photo was not approved."
+                : $"Your profile photo was not approved: {reason}",
+        });
+        await pgDb.SaveChangesAsync();
     }
 
     // ── Audit logs ────────────────────────────────────────────────────────────

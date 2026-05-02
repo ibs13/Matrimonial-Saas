@@ -24,6 +24,9 @@ public class ProfileResponse
     public List<ProfilePhoto> Photos { get; set; } = [];
     public ContactInfo? Contact { get; set; }
 
+    /// <summary>Fields that are not yet filled. Required ones block submission.</summary>
+    public List<ProfileCompletionField> MissingFields { get; set; } = [];
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? LastActiveAt { get; set; }

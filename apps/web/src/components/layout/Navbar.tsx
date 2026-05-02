@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { notificationApi } from '@/lib/api';
 
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard' },
@@ -16,10 +17,28 @@ const navLinks = [
 const adminLinks = [{ href: '/admin/profiles', label: 'Review Queue' }];
 
 export default function Navbar() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isAuthenticated } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const fetchCount = async () => {
+      try {
+        const { count } = await notificationApi.getUnreadCount();
+        setUnreadCount(count);
+      } catch {
+        // silently ignore — notification badge is non-critical
+      }
+    };
+
+    fetchCount();
+    const timer = setInterval(fetchCount, 60_000);
+    return () => clearInterval(timer);
+  }, [isAuthenticated]);
 
   const handleLogout = async () => {
     await logout();
@@ -73,6 +92,27 @@ export default function Navbar() {
           <div className="flex items-center gap-3">
             <Link href="/profile/setup" className="btn-primary hidden sm:inline-flex">
               My Profile
+            </Link>
+
+            {/* Notification bell */}
+            <Link
+              href="/notifications"
+              className={`relative p-2 rounded-lg transition-colors ${
+                pathname === '/notifications'
+                  ? 'bg-primary-50 text-primary-700'
+                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+              aria-label="Notifications"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 leading-none">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </Link>
             <div className="relative">
               <button

@@ -140,6 +140,12 @@ export interface ContactInfo {
   permanentAddress?: string;
 }
 
+export interface ProfileCompletionField {
+  field: string;
+  label: string;
+  isRequired: boolean;
+}
+
 export interface ProfileResponse {
   id: string;
   status: ProfileStatus;
@@ -156,6 +162,7 @@ export interface ProfileResponse {
   partnerExpectations?: PartnerExpectations;
   photos?: ProfilePhoto[];
   contact?: ContactInfo;
+  missingFields?: ProfileCompletionField[];
   createdAt: string;
   updatedAt: string;
   lastActiveAt?: string;
@@ -269,6 +276,37 @@ export interface ReportListResponse {
   totalCount: number;
   page: number;
   pageSize: number;
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+
+export type NotificationType =
+  | 'InterestReceived'
+  | 'InterestAccepted'
+  | 'InterestRejected'
+  | 'ProfileApproved'
+  | 'ProfileRejected'
+  | 'PhotoApproved'
+  | 'PhotoRejected'
+  | 'ReportReviewed';
+
+export interface NotificationResponse {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  isRead: boolean;
+  createdAt: string;
+  readAt?: string;
+}
+
+export interface NotificationListResponse {
+  items: NotificationResponse[];
+  totalCount: number;
+  unreadCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 // ── Saved Profiles ────────────────────────────────────────────────────────────

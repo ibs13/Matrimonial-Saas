@@ -14,6 +14,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<SavedProfile> SavedProfiles => Set<SavedProfile>();
     public DbSet<ProfileReport> ProfileReports => Set<ProfileReport>();
     public DbSet<EmailVerificationToken> EmailVerificationTokens => Set<EmailVerificationToken>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -207,6 +208,32 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                   .HasDatabaseName("IX_AuditLogs_EntityId");
             entity.HasIndex(l => new { l.Action, l.CreatedAt })
                   .HasDatabaseName("IX_AuditLogs_Action");
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.HasKey(n => n.Id);
+
+            entity.HasOne(n => n.User)
+                  .WithMany()
+                  .HasForeignKey(n => n.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(n => n.Type)
+                  .HasConversion<string>()
+                  .HasMaxLength(32)
+                  .IsRequired();
+
+            entity.Property(n => n.Title).HasMaxLength(120).IsRequired();
+            entity.Property(n => n.Body).HasMaxLength(500).IsRequired();
+
+            // Paginated "my notifications, newest first"
+            entity.HasIndex(n => new { n.UserId, n.CreatedAt })
+                  .HasDatabaseName("IX_Notifications_User");
+
+            // Fast unread count
+            entity.HasIndex(n => new { n.UserId, n.IsRead })
+                  .HasDatabaseName("IX_Notifications_Unread");
         });
     }
 }

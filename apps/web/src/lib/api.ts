@@ -28,6 +28,7 @@ import type {
   AdminProfileDetailResponse,
   AdminActionResponse,
   AuditLogListResponse,
+  NotificationListResponse,
 } from "@/types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5255";
@@ -276,6 +277,26 @@ export const savedApi = {
       .then((r) => r.data),
 
   remove: (id: string) => http.delete(`/api/saved/${id}`),
+};
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+
+export const notificationApi = {
+  getAll: (params?: { page?: number; pageSize?: number; unreadOnly?: boolean }) =>
+    http
+      .get<NotificationListResponse>("/api/notifications", { params })
+      .then((r) => r.data),
+
+  getUnreadCount: () =>
+    http
+      .get<{ count: number }>("/api/notifications/unread-count")
+      .then((r) => r.data),
+
+  markAsRead: (id: string) =>
+    http.patch(`/api/notifications/${id}/read`),
+
+  markAllAsRead: () =>
+    http.patch("/api/notifications/read-all"),
 };
 
 // ── Admin ─────────────────────────────────────────────────────────────────────

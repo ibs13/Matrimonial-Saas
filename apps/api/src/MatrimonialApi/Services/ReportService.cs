@@ -2,6 +2,7 @@ using MatrimonialApi.Data;
 using MatrimonialApi.DTOs.Admin;
 using MatrimonialApi.DTOs.Report;
 using MatrimonialApi.Models;
+using MatrimonialApi.Models.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace MatrimonialApi.Services;
@@ -102,6 +103,7 @@ public class ReportService(AppDbContext db)
         if (report.Status == "Dismissed")
             throw new InvalidOperationException("Report is already dismissed.");
 
+        var reporterId = report.ReporterId;
         report.Status = "Dismissed";
         report.ResolvedAt = DateTime.UtcNow;
 
@@ -116,6 +118,16 @@ public class ReportService(AppDbContext db)
             EntityId = reportId,
             Reason = null,
             CreatedAt = DateTime.UtcNow,
+        });
+
+        db.Notifications.Add(new Notification
+        {
+            UserId = reporterId,
+            Type = NotificationType.ReportReviewed,
+            Title = "Report reviewed",
+            Body = string.IsNullOrWhiteSpace(displayName)
+                ? "Your report has been reviewed."
+                : $"Your report against {displayName} has been reviewed.",
         });
 
         await db.SaveChangesAsync();

@@ -52,6 +52,16 @@ public class InterestService(AppDbContext pgDb)
         pgDb.InterestRequests.Add(request);
         await pgDb.SaveChangesAsync();
 
+        var senderName = (await pgDb.ProfileIndexes.FindAsync(senderId))?.DisplayName ?? "Someone";
+        pgDb.Notifications.Add(new Notification
+        {
+            UserId = req.ReceiverId,
+            Type = NotificationType.InterestReceived,
+            Title = "New interest received",
+            Body = $"{senderName} sent you an interest request.",
+        });
+        await pgDb.SaveChangesAsync();
+
         return await BuildResponseAsync(request, perspectiveOf: senderId);
     }
 
@@ -91,6 +101,16 @@ public class InterestService(AppDbContext pgDb)
         request.RespondedAt = DateTime.UtcNow;
         await pgDb.SaveChangesAsync();
 
+        var acceptorName = (await pgDb.ProfileIndexes.FindAsync(receiverId))?.DisplayName ?? "Someone";
+        pgDb.Notifications.Add(new Notification
+        {
+            UserId = request.SenderId,
+            Type = NotificationType.InterestAccepted,
+            Title = "Interest accepted",
+            Body = $"{acceptorName} accepted your interest request.",
+        });
+        await pgDb.SaveChangesAsync();
+
         return await BuildResponseAsync(request, perspectiveOf: receiverId);
     }
 
@@ -110,6 +130,16 @@ public class InterestService(AppDbContext pgDb)
 
         request.Status = InterestRequestStatus.Rejected;
         request.RespondedAt = DateTime.UtcNow;
+        await pgDb.SaveChangesAsync();
+
+        var rejectorName = (await pgDb.ProfileIndexes.FindAsync(receiverId))?.DisplayName ?? "Someone";
+        pgDb.Notifications.Add(new Notification
+        {
+            UserId = request.SenderId,
+            Type = NotificationType.InterestRejected,
+            Title = "Interest declined",
+            Body = $"{rejectorName} declined your interest request.",
+        });
         await pgDb.SaveChangesAsync();
 
         return await BuildResponseAsync(request, perspectiveOf: receiverId);

@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { profileApi, interestApi, authApi } from '@/lib/api';
 import { statusBadgeClass, enumLabel, formatDate, apiError } from '@/lib/utils';
 import Spinner from '@/components/ui/Spinner';
-import type { ProfileResponse, InterestListResponse } from '@/types';
+import type { ProfileResponse, InterestListResponse, ProfileCompletionField } from '@/types';
 
 export default function DashboardPage() {
   const { user, isEmailVerified, refreshUser } = useAuth();
@@ -132,6 +132,11 @@ export default function DashboardPage() {
               </p>
             )}
           </div>
+
+          {/* Missing fields */}
+          {profile.missingFields && profile.missingFields.length > 0 && (
+            <MissingFieldsPanel fields={profile.missingFields} />
+          )}
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
             {profile.basic?.displayName && (
@@ -344,6 +349,46 @@ function EmailVerificationBanner({ onResent: _onResent }: { onResent: () => Prom
         >
           {sending ? 'Sending…' : 'Resend email'}
         </button>
+      )}
+    </div>
+  );
+}
+
+function MissingFieldsPanel({ fields }: { fields: ProfileCompletionField[] }) {
+  const required = fields.filter((f) => f.isRequired);
+  const recommended = fields.filter((f) => !f.isRequired);
+
+  return (
+    <div className="mb-4 rounded-lg border border-gray-200 overflow-hidden text-sm">
+      {required.length > 0 && (
+        <div className="px-4 py-3 bg-rose-50">
+          <p className="font-medium text-rose-800 mb-1.5">Required fields missing</p>
+          <ul className="flex flex-wrap gap-2">
+            {required.map((f) => (
+              <li
+                key={f.field}
+                className="inline-flex items-center gap-1 bg-rose-100 text-rose-800 rounded-full px-2.5 py-0.5 text-xs font-medium"
+              >
+                <span>!</span> {f.label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {recommended.length > 0 && (
+        <div className="px-4 py-3 bg-gray-50">
+          <p className="font-medium text-gray-700 mb-1.5">Recommended fields</p>
+          <ul className="flex flex-wrap gap-2">
+            {recommended.map((f) => (
+              <li
+                key={f.field}
+                className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 rounded-full px-2.5 py-0.5 text-xs"
+              >
+                + {f.label}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );
