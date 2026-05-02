@@ -413,6 +413,23 @@ export interface AuditLogListResponse {
   pageSize: number;
 }
 
+// ── Contact Unlock ────────────────────────────────────────────────────────────
+
+export type ContactBlockReason = 'NoPlan' | 'NoAcceptedInterest' | 'OwnProfile';
+
+export interface ContactStatusResponse {
+  isUnlocked: boolean;
+  canUnlock: boolean;
+  /** Set when canUnlock is false */
+  blockReason?: ContactBlockReason;
+  // Contact fields — only populated when isUnlocked = true
+  email?: string;
+  phone?: string;
+  guardianPhone?: string;
+  presentAddress?: string;
+  permanentAddress?: string;
+}
+
 // ── Billing ───────────────────────────────────────────────────────────────────
 
 export type OrderStatus = 'Pending' | 'Paid' | 'Failed' | 'Cancelled' | 'Expired';

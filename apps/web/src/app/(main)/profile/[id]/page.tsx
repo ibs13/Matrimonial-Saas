@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { interestApi, profileApi, reportApi } from '@/lib/api';
 import { enumLabel, timeAgo, apiError } from '@/lib/utils';
 import Spinner from '@/components/ui/Spinner';
-import type { SearchResultItem, ReportReason } from '@/types';
+import type { SearchResultItem, ReportReason, ContactStatusResponse, ContactBlockReason } from '@/types';
 
 const REPORT_REASONS: { value: ReportReason; label: string }[] = [
   { value: 'Fake', label: 'Fake profile / stolen identity' },
@@ -148,6 +149,9 @@ export default function ProfileDetailPage() {
         </dl>
       </div>
 
+      {/* Contact section */}
+      <ContactSection profileId={id} />
+
       {/* Send Interest */}
       <div className="card">
         <h2 className="font-semibold text-gray-900 mb-4">Send Interest</h2>
@@ -247,6 +251,163 @@ export default function ProfileDetailPage() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── Contact Section ───────────────────────────────────────────────────────────
+
+function ContactSection({ profileId }: { profileId: string }) {
+  const [status, setStatus] = useState<ContactStatusResponse | null>(null);
+  const [unlocking, setUnlocking] = useState(false);
+  const [unlockError, setUnlockError] = useState('');
+
+  useEffect(() => {
+    profileApi.getContact(profileId).then(setStatus).catch(() => {});
+  }, [profileId]);
+
+  const handleUnlock = async () => {
+    setUnlocking(true);
+    setUnlockError('');
+    try {
+      const result = await profileApi.unlockContact(profileId);
+      setStatus(result);
+    } catch (err) {
+      setUnlockError(apiError(err));
+    } finally {
+      setUnlocking(false);
+    }
+  };
+
+  // Not loaded yet, or own profile — render nothing
+  if (!status || status.blockReason === 'OwnProfile') return null;
+
+  if (status.isUnlocked) {
+    const hasAny = status.email || status.phone || status.guardianPhone || status.presentAddress;
+    return (
+      <div className="card">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-lg">🔓</span>
+          <h2 className="font-semibold text-gray-900">Contact Details</h2>
+        </div>
+        {hasAny ? (
+          <dl className="space-y-3">
+            {status.email && (
+              <ContactField icon="✉️" label="Email" value={status.email} />
+            )}
+            {status.phone && (
+              <ContactField icon="📞" label="Phone" value={status.phone} />
+            )}
+            {status.guardianPhone && (
+              <ContactField icon="📞" label="Guardian / Wali" value={status.guardianPhone} />
+            )}
+            {status.presentAddress && (
+              <ContactField icon="📍" label="Present Address" value={status.presentAddress} />
+            )}
+            {status.permanentAddress && (
+              <ContactField icon="🏠" label="Permanent Address" value={status.permanentAddress} />
+            )}
+          </dl>
+        ) : (
+          <p className="text-sm text-gray-500">
+            This member has not added contact details yet.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  // Locked — show the appropriate state
+  return (
+    <div className="card">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-lg">🔒</span>
+        <h2 className="font-semibold text-gray-900">Contact Details</h2>
+      </div>
+      <LockedState
+        blockReason={status.blockReason}
+        canUnlock={status.canUnlock}
+        unlocking={unlocking}
+        unlockError={unlockError}
+        onUnlock={handleUnlock}
+      />
+    </div>
+  );
+}
+
+function LockedState({
+  blockReason,
+  canUnlock,
+  unlocking,
+  unlockError,
+  onUnlock,
+}: {
+  blockReason?: ContactBlockReason;
+  canUnlock: boolean;
+  unlocking: boolean;
+  unlockError: string;
+  onUnlock: () => void;
+}) {
+  if (blockReason === 'NoPlan') {
+    return (
+      <div className="rounded-lg bg-amber-50 border border-amber-200 p-5 text-center">
+        <p className="font-medium text-amber-900">Premium or VIP plan required</p>
+        <p className="text-sm text-amber-700 mt-1">
+          Upgrade your membership to view phone, email, and address information.
+        </p>
+        <Link href="/membership" className="btn-primary mt-3 inline-block text-sm">
+          View plans
+        </Link>
+      </div>
+    );
+  }
+
+  if (blockReason === 'NoAcceptedInterest') {
+    return (
+      <div className="rounded-lg bg-gray-50 border border-gray-200 p-5 text-center">
+        <p className="font-medium text-gray-800">Accept each other&apos;s interest first</p>
+        <p className="text-sm text-gray-500 mt-1">
+          Contact details become available after a mutual interest is accepted.
+        </p>
+        <Link href="/interests/received" className="btn-secondary mt-3 inline-block text-sm">
+          View received interests
+        </Link>
+      </div>
+    );
+  }
+
+  if (canUnlock) {
+    return (
+      <div className="rounded-lg bg-green-50 border border-green-200 p-5 text-center">
+        <p className="font-medium text-green-800">Contact details available</p>
+        <p className="text-sm text-green-700 mt-1">
+          Your interest was accepted. Click below to reveal contact information.
+        </p>
+        {unlockError && (
+          <p className="text-sm text-red-600 mt-2">{unlockError}</p>
+        )}
+        <button
+          onClick={onUnlock}
+          disabled={unlocking}
+          className="btn-primary mt-3 text-sm"
+        >
+          {unlocking ? 'Unlocking…' : 'Reveal contact details'}
+        </button>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function ContactField({ icon, label, value }: { icon: string; label: string; value: string }) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="text-base flex-shrink-0 mt-0.5">{icon}</span>
+      <div>
+        <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</dt>
+        <dd className="text-sm text-gray-900 mt-0.5 break-all">{value}</dd>
       </div>
     </div>
   );

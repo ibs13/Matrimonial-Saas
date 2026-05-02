@@ -20,7 +20,10 @@
       "Bash(Write-Output \"done\")",
       "Bash(Get-ChildItem -Path \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web\\\\src\\\\app\" -Directory)",
       "Bash(Select-Object -ExpandProperty Name)",
-      "PowerShell(New-Item *)"
+      "PowerShell(New-Item *)",
+      "Bash(Get-ChildItem -Path \"D:\\\\Project\\\\matrimonial-saas\" -Recurse -Depth 2)",
+      "Bash(Select-Object FullName)",
+      "PowerShell(head *)"
     ]
   }
 }

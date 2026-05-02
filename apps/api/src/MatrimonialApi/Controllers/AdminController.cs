@@ -13,7 +13,8 @@ namespace MatrimonialApi.Controllers;
 public class AdminController(
     AdminService adminService,
     ReportService reportService,
-    OrderService orderService) : ControllerBase
+    OrderService orderService,
+    ContactUnlockService contactUnlockService) : ControllerBase
 {
     private Guid CurrentAdminId =>
         Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -140,6 +141,16 @@ public class AdminController(
     public async Task<IActionResult> GetPaymentAttempts([FromQuery] PaymentAttemptListRequest request)
     {
         var response = await orderService.GetPaymentAttemptsAsync(request);
+        return Ok(response);
+    }
+
+    // GET /api/admin/contact-unlocks?page=1&pageSize=20 — audit log of all contact unlock events
+    [HttpGet("contact-unlocks")]
+    public async Task<IActionResult> GetContactUnlocks(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25)
+    {
+        var response = await contactUnlockService.GetAuditLogAsync(page, pageSize);
         return Ok(response);
     }
 }

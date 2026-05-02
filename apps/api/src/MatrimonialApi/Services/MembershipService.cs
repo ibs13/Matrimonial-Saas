@@ -22,7 +22,7 @@ public class MembershipService(AppDbContext pgDb)
         {
             [MembershipPlan.Free]    = new(MembershipPlan.Free,    "Get started for free",          5,  false, false, false,    0),
             [MembershipPlan.Basic]   = new(MembershipPlan.Basic,   "More reach, smarter search",   20,  true,  false, false,  299),
-            [MembershipPlan.Premium] = new(MembershipPlan.Premium, "Stand out from the crowd",     50,  true,  true,  false,  799),
+            [MembershipPlan.Premium] = new(MembershipPlan.Premium, "Stand out from the crowd",     50,  true,  true,  true,   799),
             [MembershipPlan.Vip]     = new(MembershipPlan.Vip,     "Unlimited access, every tool", -1,  true,  true,  true,  1999),
         };
 

@@ -19,6 +19,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<UserMembership> UserMemberships => Set<UserMembership>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<PaymentAttempt> PaymentAttempts => Set<PaymentAttempt>();
+    public DbSet<ContactUnlock> ContactUnlocks => Set<ContactUnlock>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -316,6 +317,34 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             // User lookup (denormalised UserId speeds up per-user queries)
             entity.HasIndex(pa => new { pa.UserId, pa.AttemptedAt })
                   .HasDatabaseName("IX_PaymentAttempts_User");
+        });
+
+        modelBuilder.Entity<ContactUnlock>(entity =>
+        {
+            entity.HasKey(cu => cu.Id);
+
+            entity.HasOne(cu => cu.UnlockedByUser)
+                  .WithMany()
+                  .HasForeignKey(cu => cu.UnlockedByUserId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(cu => cu.ProfileUser)
+                  .WithMany()
+                  .HasForeignKey(cu => cu.ProfileUserId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Each viewer can only unlock a given profile once
+            entity.HasIndex(cu => new { cu.UnlockedByUserId, cu.ProfileUserId })
+                  .IsUnique()
+                  .HasDatabaseName("IX_ContactUnlocks_Pair");
+
+            // Admin audit: all unlocks for a given profile
+            entity.HasIndex(cu => new { cu.ProfileUserId, cu.UnlockedAt })
+                  .HasDatabaseName("IX_ContactUnlocks_Profile");
+
+            // Admin audit: all unlocks performed by a user
+            entity.HasIndex(cu => new { cu.UnlockedByUserId, cu.UnlockedAt })
+                  .HasDatabaseName("IX_ContactUnlocks_Unlocker");
         });
 
         modelBuilder.Entity<Notification>(entity =>

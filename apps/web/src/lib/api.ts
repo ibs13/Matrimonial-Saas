@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
 import type {
+  ContactStatusResponse,
   UserMembershipResponse,
   PlanDetails,
   AuthResponse,
@@ -218,6 +219,16 @@ export const profileApi = {
   getPhotoForProfile: (userId: string) =>
     http
       .get<{ photoUrl: string | null }>(`/api/profile/${userId}/photo`)
+      .then((r) => r.data),
+
+  getContact: (userId: string) =>
+    http
+      .get<ContactStatusResponse>(`/api/profile/${userId}/contact`)
+      .then((r) => r.data),
+
+  unlockContact: (userId: string) =>
+    http
+      .post<ContactStatusResponse>(`/api/profile/${userId}/unlock-contact`)
       .then((r) => r.data),
 
   recordView: (userId: string) =>

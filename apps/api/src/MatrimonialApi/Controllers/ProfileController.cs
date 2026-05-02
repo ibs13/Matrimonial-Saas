@@ -9,7 +9,10 @@ namespace MatrimonialApi.Controllers;
 [ApiController]
 [Route("api/profile")]
 [Authorize]
-public class ProfileController(ProfileService profileService, ProfileViewService profileViewService) : ControllerBase
+public class ProfileController(
+    ProfileService profileService,
+    ProfileViewService profileViewService,
+    ContactUnlockService contactUnlockService) : ControllerBase
 {
     private Guid CurrentUserId =>
         Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -169,6 +172,22 @@ public class ProfileController(ProfileService profileService, ProfileViewService
     {
         pageSize = Math.Clamp(pageSize, 1, 50);
         var result = await profileViewService.GetViewersAsync(CurrentUserId, page, pageSize);
+        return Ok(result);
+    }
+
+    // GET /api/profile/{userId}/contact — check unlock status (and return details if already unlocked)
+    [HttpGet("{userId:guid}/contact")]
+    public async Task<IActionResult> GetContact(Guid userId)
+    {
+        var result = await contactUnlockService.GetStatusAsync(CurrentUserId, userId);
+        return Ok(result);
+    }
+
+    // POST /api/profile/{userId}/unlock-contact — perform the unlock (Premium/VIP + accepted interest required)
+    [HttpPost("{userId:guid}/unlock-contact")]
+    public async Task<IActionResult> UnlockContact(Guid userId)
+    {
+        var result = await contactUnlockService.UnlockAsync(CurrentUserId, userId);
         return Ok(result);
     }
 }
