@@ -29,6 +29,7 @@ import type {
   AdminActionResponse,
   AuditLogListResponse,
   NotificationListResponse,
+  ProfileViewersResponse,
 } from "@/types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5255";
@@ -211,6 +212,14 @@ export const profileApi = {
   getPhotoForProfile: (userId: string) =>
     http
       .get<{ photoUrl: string | null }>(`/api/profile/${userId}/photo`)
+      .then((r) => r.data),
+
+  recordView: (userId: string) =>
+    http.post(`/api/profile/${userId}/view`),
+
+  getViewers: (params?: { page?: number; pageSize?: number }) =>
+    http
+      .get<ProfileViewersResponse>("/api/profile/viewers", { params })
       .then((r) => r.data),
 };
 

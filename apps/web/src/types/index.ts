@@ -278,6 +278,27 @@ export interface ReportListResponse {
   pageSize: number;
 }
 
+// ── Profile Views ─────────────────────────────────────────────────────────────
+
+export interface ProfileViewerItem {
+  viewerUserId: string;
+  displayName: string;
+  gender?: string;
+  ageYears?: number;
+  countryOfResidence?: string;
+  division?: string;
+  photoUrl?: string;
+  viewedAt: string;
+}
+
+export interface ProfileViewersResponse {
+  items: ProfileViewerItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 // ── Notifications ─────────────────────────────────────────────────────────────
 
 export type NotificationType =

@@ -51,6 +51,7 @@ export default function ProfileDetailPage() {
     profileApi.getPhotoForProfile(id)
       .then((res) => setPhotoUrl(res.photoUrl))
       .catch(() => {});
+    profileApi.recordView(id).catch(() => {});
   }, [id]);
 
   const handleSubmitReport = async () => {
@@ -99,6 +100,7 @@ export default function ProfileDetailPage() {
         <div className="flex items-start gap-4">
           <div className="w-20 h-20 rounded-full bg-primary-100 text-primary-600 font-bold text-3xl flex items-center justify-center flex-shrink-0 overflow-hidden">
             {photoUrl
+              // eslint-disable-next-line @next/next/no-img-element
               ? <img src={photoUrl} alt={profile.displayName} className="w-full h-full object-cover" />
               : (profile.displayName?.[0]?.toUpperCase() ?? '?')
             }

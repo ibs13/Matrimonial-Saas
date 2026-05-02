@@ -9,7 +9,7 @@ namespace MatrimonialApi.Controllers;
 [ApiController]
 [Route("api/profile")]
 [Authorize]
-public class ProfileController(ProfileService profileService) : ControllerBase
+public class ProfileController(ProfileService profileService, ProfileViewService profileViewService) : ControllerBase
 {
     private Guid CurrentUserId =>
         Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -151,5 +151,24 @@ public class ProfileController(ProfileService profileService) : ControllerBase
     {
         var url = await profileService.GetPhotoUrlForViewerAsync(CurrentUserId, userId);
         return Ok(new { photoUrl = url });
+    }
+
+    // POST /api/profile/{id}/view — record a profile view (deduped per UTC day)
+    [HttpPost("{id:guid}/view")]
+    public async Task<IActionResult> RecordView(Guid id)
+    {
+        await profileViewService.RecordAsync(CurrentUserId, id);
+        return NoContent();
+    }
+
+    // GET /api/profile/viewers — who viewed my profile
+    [HttpGet("viewers")]
+    public async Task<IActionResult> GetViewers(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        pageSize = Math.Clamp(pageSize, 1, 50);
+        var result = await profileViewService.GetViewersAsync(CurrentUserId, page, pageSize);
+        return Ok(result);
     }
 }

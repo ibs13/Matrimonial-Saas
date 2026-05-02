@@ -12,6 +12,7 @@ const navLinks = [
   { href: '/shortlist', label: 'Shortlist' },
   { href: '/interests/sent', label: 'Sent' },
   { href: '/interests/received', label: 'Received' },
+  { href: '/profile/viewers', label: 'Viewers' },
 ];
 
 const adminLinks = [{ href: '/admin/profiles', label: 'Review Queue' }];

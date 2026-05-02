@@ -15,6 +15,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ProfileReport> ProfileReports => Set<ProfileReport>();
     public DbSet<EmailVerificationToken> EmailVerificationTokens => Set<EmailVerificationToken>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<ProfileView> ProfileViews => Set<ProfileView>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -208,6 +209,29 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                   .HasDatabaseName("IX_AuditLogs_EntityId");
             entity.HasIndex(l => new { l.Action, l.CreatedAt })
                   .HasDatabaseName("IX_AuditLogs_Action");
+        });
+
+        modelBuilder.Entity<ProfileView>(entity =>
+        {
+            entity.HasKey(v => v.Id);
+
+            entity.HasOne(v => v.ViewedUser)
+                  .WithMany()
+                  .HasForeignKey(v => v.ViewedUserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(v => v.Viewer)
+                  .WithMany()
+                  .HasForeignKey(v => v.ViewerUserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            // "Did this viewer already view today?" dedup check
+            entity.HasIndex(v => new { v.ViewerUserId, v.ViewedUserId, v.ViewedAt })
+                  .HasDatabaseName("IX_ProfileViews_ViewerViewed");
+
+            // "Who viewed my profile?" list, newest first
+            entity.HasIndex(v => new { v.ViewedUserId, v.ViewedAt })
+                  .HasDatabaseName("IX_ProfileViews_ViewedUser");
         });
 
         modelBuilder.Entity<Notification>(entity =>
