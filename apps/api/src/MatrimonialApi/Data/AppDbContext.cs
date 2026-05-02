@@ -17,6 +17,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<ProfileView> ProfileViews => Set<ProfileView>();
     public DbSet<UserMembership> UserMemberships => Set<UserMembership>();
+    public DbSet<Order> Orders => Set<Order>();
+    public DbSet<PaymentAttempt> PaymentAttempts => Set<PaymentAttempt>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -251,6 +253,69 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             entity.HasIndex(m => m.Plan)
                   .HasDatabaseName("IX_UserMemberships_Plan");
+        });
+
+        modelBuilder.Entity<Order>(entity =>
+        {
+            entity.HasKey(o => o.Id);
+
+            entity.HasOne(o => o.User)
+                  .WithMany()
+                  .HasForeignKey(o => o.UserId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.Property(o => o.Plan)
+                  .HasConversion<string>()
+                  .HasMaxLength(16)
+                  .IsRequired();
+
+            entity.Property(o => o.Status)
+                  .HasConversion<string>()
+                  .HasMaxLength(16)
+                  .IsRequired();
+
+            entity.Property(o => o.AmountBdt).HasColumnType("numeric(10,2)");
+            entity.Property(o => o.Notes).HasMaxLength(500);
+
+            // User's billing history, newest first
+            entity.HasIndex(o => new { o.UserId, o.CreatedAt })
+                  .HasDatabaseName("IX_Orders_User");
+
+            // Admin: filter by status or plan
+            entity.HasIndex(o => new { o.Status, o.CreatedAt })
+                  .HasDatabaseName("IX_Orders_Status");
+        });
+
+        modelBuilder.Entity<PaymentAttempt>(entity =>
+        {
+            entity.HasKey(pa => pa.Id);
+
+            entity.HasOne(pa => pa.Order)
+                  .WithMany(o => o.PaymentAttempts)
+                  .HasForeignKey(pa => pa.OrderId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(pa => pa.Status)
+                  .HasConversion<string>()
+                  .HasMaxLength(16)
+                  .IsRequired();
+
+            entity.Property(pa => pa.AmountBdt).HasColumnType("numeric(10,2)");
+            entity.Property(pa => pa.GatewayName).HasMaxLength(32);
+            entity.Property(pa => pa.GatewayTransactionId).HasMaxLength(128);
+            entity.Property(pa => pa.FailureReason).HasMaxLength(500);
+
+            // Admin: all attempts for an order
+            entity.HasIndex(pa => new { pa.OrderId, pa.AttemptedAt })
+                  .HasDatabaseName("IX_PaymentAttempts_Order");
+
+            // Admin: filter by status, newest first
+            entity.HasIndex(pa => new { pa.Status, pa.AttemptedAt })
+                  .HasDatabaseName("IX_PaymentAttempts_Status");
+
+            // User lookup (denormalised UserId speeds up per-user queries)
+            entity.HasIndex(pa => new { pa.UserId, pa.AttemptedAt })
+                  .HasDatabaseName("IX_PaymentAttempts_User");
         });
 
         modelBuilder.Entity<Notification>(entity =>

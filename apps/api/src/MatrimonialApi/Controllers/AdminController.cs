@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using MatrimonialApi.DTOs.Admin;
+using MatrimonialApi.DTOs.Billing;
 using MatrimonialApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +10,10 @@ namespace MatrimonialApi.Controllers;
 [ApiController]
 [Route("api/admin")]
 [Authorize(Policy = "AdminOnly")]
-public class AdminController(AdminService adminService, ReportService reportService) : ControllerBase
+public class AdminController(
+    AdminService adminService,
+    ReportService reportService,
+    OrderService orderService) : ControllerBase
 {
     private Guid CurrentAdminId =>
         Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -129,5 +133,13 @@ public class AdminController(AdminService adminService, ReportService reportServ
     {
         await adminService.RejectPhotoAsync(CurrentAdminId, CurrentAdminEmail, userId, request.Reason);
         return NoContent();
+    }
+
+    // GET /api/admin/payment-attempts?page=1&pageSize=20&status=&plan=
+    [HttpGet("payment-attempts")]
+    public async Task<IActionResult> GetPaymentAttempts([FromQuery] PaymentAttemptListRequest request)
+    {
+        var response = await orderService.GetPaymentAttemptsAsync(request);
+        return Ok(response);
     }
 }

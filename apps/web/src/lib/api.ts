@@ -33,6 +33,9 @@ import type {
   NotificationListResponse,
   ProfileViewersResponse,
   AdminDashboardMetrics,
+  OrderResponse,
+  OrderListResponse,
+  PaymentAttemptListResponse,
 } from "@/types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5255";
@@ -321,6 +324,16 @@ export const membershipApi = {
     http.get<UserMembershipResponse>("/api/membership/me").then((r) => r.data),
 };
 
+// ── Billing ───────────────────────────────────────────────────────────────────
+
+export const orderApi = {
+  create: (plan: string) =>
+    http.post<OrderResponse>("/api/orders", { plan }).then((r) => r.data),
+
+  getMine: (params?: { page?: number; pageSize?: number }) =>
+    http.get<OrderListResponse>("/api/orders/me", { params }).then((r) => r.data),
+};
+
 // ── Admin ─────────────────────────────────────────────────────────────────────
 
 export const adminApi = {
@@ -389,4 +402,14 @@ export const adminApi = {
 
   rejectPhoto: (userId: string, reason: string) =>
     http.patch(`/api/admin/photos/${userId}/reject`, { reason }),
+
+  getPaymentAttempts: (params: {
+    page?: number;
+    pageSize?: number;
+    status?: string;
+    plan?: string;
+  }) =>
+    http
+      .get<PaymentAttemptListResponse>("/api/admin/payment-attempts", { params })
+      .then((r) => r.data),
 };

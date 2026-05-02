@@ -17,7 +17,10 @@
       "PowerShell(cd D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web; npx eslint src/app/\\\\\\(main\\\\\\)/dashboard/page.tsx src/types/index.ts --max-warnings=0 2>&1 | Select-Object -Last 20)",
       "Bash(New-Item -ItemType Directory -Force \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\api\\\\src\\\\MatrimonialApi\\\\Exceptions\")",
       "Bash(Out-Null)",
-      "Bash(Write-Output \"done\")"
+      "Bash(Write-Output \"done\")",
+      "Bash(Get-ChildItem -Path \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web\\\\src\\\\app\" -Directory)",
+      "Bash(Select-Object -ExpandProperty Name)",
+      "PowerShell(New-Item *)"
     ]
   }
 }

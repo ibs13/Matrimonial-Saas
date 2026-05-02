@@ -413,6 +413,53 @@ export interface AuditLogListResponse {
   pageSize: number;
 }
 
+// ── Billing ───────────────────────────────────────────────────────────────────
+
+export type OrderStatus = 'Pending' | 'Paid' | 'Failed' | 'Cancelled' | 'Expired';
+export type PaymentAttemptStatus = 'Pending' | 'Paid' | 'Failed' | 'Cancelled';
+
+export interface OrderResponse {
+  id: string;
+  plan: MembershipPlan;
+  amountBdt: number;
+  status: OrderStatus;
+  durationDays: number;
+  attemptCount: number;
+  createdAt: string;
+  paidAt?: string;
+}
+
+export interface OrderListResponse {
+  items: OrderResponse[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface PaymentAttemptResponse {
+  id: string;
+  orderId: string;
+  userId: string;
+  userEmail: string;
+  plan: MembershipPlan;
+  amountBdt: number;
+  status: PaymentAttemptStatus;
+  gatewayName?: string;
+  gatewayTransactionId?: string;
+  failureReason?: string;
+  attemptedAt: string;
+  completedAt?: string;
+}
+
+export interface PaymentAttemptListResponse {
+  items: PaymentAttemptResponse[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 // ── Membership ────────────────────────────────────────────────────────────────
 
 export type MembershipPlan = 'Free' | 'Basic' | 'Premium' | 'Vip';

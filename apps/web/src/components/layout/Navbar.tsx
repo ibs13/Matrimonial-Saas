@@ -14,11 +14,13 @@ const navLinks = [
   { href: '/interests/received', label: 'Received' },
   { href: '/profile/viewers', label: 'Viewers' },
   { href: '/membership', label: 'Plans' },
+  { href: '/billing', label: 'Billing' },
 ];
 
 const adminLinks = [
   { href: '/admin/dashboard', label: 'Admin Dashboard' },
   { href: '/admin/profiles', label: 'Review Queue' },
+  { href: '/admin/payments', label: 'Payments' },
 ];
 
 export default function Navbar() {
