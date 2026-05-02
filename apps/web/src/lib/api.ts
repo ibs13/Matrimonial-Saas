@@ -30,6 +30,7 @@ import type {
   AuditLogListResponse,
   NotificationListResponse,
   ProfileViewersResponse,
+  AdminDashboardMetrics,
 } from "@/types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5255";
@@ -362,6 +363,9 @@ export const adminApi = {
     http
       .patch<AdminActionResponse>(`/api/admin/reports/${id}/suspend`, { reason })
       .then((r) => r.data),
+
+  getMetrics: () =>
+    http.get<AdminDashboardMetrics>("/api/admin/metrics").then((r) => r.data),
 
   getPendingPhotos: (params: { page?: number; pageSize?: number }) =>
     http

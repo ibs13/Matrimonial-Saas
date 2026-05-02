@@ -15,7 +15,10 @@ const navLinks = [
   { href: '/profile/viewers', label: 'Viewers' },
 ];
 
-const adminLinks = [{ href: '/admin/profiles', label: 'Review Queue' }];
+const adminLinks = [
+  { href: '/admin/dashboard', label: 'Admin Dashboard' },
+  { href: '/admin/profiles', label: 'Review Queue' },
+];
 
 export default function Navbar() {
   const { user, logout, isAdmin, isAuthenticated } = useAuth();

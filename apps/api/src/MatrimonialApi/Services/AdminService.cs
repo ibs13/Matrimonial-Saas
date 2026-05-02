@@ -295,6 +295,60 @@ public class AdminService(AppDbContext pgDb, MongoDbContext mongoDb)
         };
     }
 
+    // ── Dashboard metrics ─────────────────────────────────────────────────────
+
+    public async Task<AdminDashboardMetrics> GetDashboardMetricsAsync()
+    {
+        var cutoff = DateTime.UtcNow.AddDays(-7);
+
+        var totalUsers        = await pgDb.Users.CountAsync(u => u.Role == UserRole.User);
+        var verifiedUsers     = await pgDb.Users.CountAsync(u => u.Role == UserRole.User && u.IsEmailVerified);
+        var newUsersLast7Days = await pgDb.Users.CountAsync(u => u.Role == UserRole.User && u.CreatedAt >= cutoff);
+
+        var draftProfiles     = await pgDb.ProfileIndexes.CountAsync(p => p.Status == "Draft");
+        var pendingProfiles   = await pgDb.ProfileIndexes.CountAsync(p => p.Status == "PendingReview");
+        var approvedProfiles  = await pgDb.ProfileIndexes.CountAsync(p => p.Status == "Active");
+        var suspendedProfiles = await pgDb.ProfileIndexes.CountAsync(p => p.Status == "Paused");
+
+        var activeReports  = await pgDb.ProfileReports.CountAsync(r => r.Status == "Active");
+        var totalInterests = await pgDb.InterestRequests.CountAsync();
+        var acceptedInterests = await pgDb.InterestRequests.CountAsync(r => r.Status == InterestRequestStatus.Accepted);
+
+        var pendingPhotoFilter = Builders<Profile>.Filter.ElemMatch(
+            p => p.Photos, photo => photo.Status == PhotoStatus.Pending);
+        var pendingPhotos = (int)await mongoDb.Profiles.CountDocumentsAsync(pendingPhotoFilter);
+
+        var recentActivity = await pgDb.AuditLogs
+            .OrderByDescending(l => l.CreatedAt)
+            .Take(10)
+            .Select(l => new RecentActivityItem
+            {
+                Action = l.Action,
+                AdminEmail = l.AdminEmail,
+                EntityType = l.EntityType,
+                EntityId = l.EntityId,
+                Reason = l.Reason,
+                CreatedAt = l.CreatedAt,
+            })
+            .ToListAsync();
+
+        return new AdminDashboardMetrics
+        {
+            TotalUsers = totalUsers,
+            VerifiedUsers = verifiedUsers,
+            NewUsersLast7Days = newUsersLast7Days,
+            DraftProfiles = draftProfiles,
+            PendingProfiles = pendingProfiles,
+            ApprovedProfiles = approvedProfiles,
+            SuspendedProfiles = suspendedProfiles,
+            ActiveReports = activeReports,
+            PendingPhotos = pendingPhotos,
+            TotalInterests = totalInterests,
+            AcceptedInterests = acceptedInterests,
+            RecentActivity = recentActivity,
+        };
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private async Task<AdminActionResponse> ApplyStatusChangeAsync(

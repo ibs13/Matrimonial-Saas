@@ -412,3 +412,27 @@ export interface AuditLogListResponse {
   page: number;
   pageSize: number;
 }
+
+export interface RecentActivityItem {
+  action: string;
+  adminEmail: string;
+  entityType: string;
+  entityId: string;
+  reason?: string;
+  createdAt: string;
+}
+
+export interface AdminDashboardMetrics {
+  totalUsers: number;
+  verifiedUsers: number;
+  newUsersLast7Days: number;
+  draftProfiles: number;
+  pendingProfiles: number;
+  approvedProfiles: number;
+  suspendedProfiles: number;
+  activeReports: number;
+  pendingPhotos: number;
+  totalInterests: number;
+  acceptedInterests: number;
+  recentActivity: RecentActivityItem[];
+}

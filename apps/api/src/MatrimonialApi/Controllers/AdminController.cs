@@ -21,6 +21,14 @@ public class AdminController(AdminService adminService, ReportService reportServ
             ?? User.FindFirstValue("email")
             ?? throw new UnauthorizedAccessException("Admin email not found in token.");
 
+    // GET /api/admin/metrics
+    [HttpGet("metrics")]
+    public async Task<IActionResult> GetDashboardMetrics()
+    {
+        var metrics = await adminService.GetDashboardMetricsAsync();
+        return Ok(metrics);
+    }
+
     // GET /api/admin/profiles/pending
     [HttpGet("profiles/pending")]
     public async Task<IActionResult> GetPendingProfiles([FromQuery] PendingProfilesRequest request)
