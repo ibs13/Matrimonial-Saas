@@ -3,16 +3,17 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { profileApi, interestApi, authApi } from '@/lib/api';
+import { profileApi, interestApi, authApi, membershipApi } from '@/lib/api';
 import { statusBadgeClass, enumLabel, formatDate, apiError } from '@/lib/utils';
 import Spinner from '@/components/ui/Spinner';
-import type { ProfileResponse, InterestListResponse, ProfileCompletionField } from '@/types';
+import type { ProfileResponse, InterestListResponse, ProfileCompletionField, UserMembershipResponse, MembershipPlan } from '@/types';
 
 export default function DashboardPage() {
   const { user, isEmailVerified, refreshUser } = useAuth();
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [sent, setSent] = useState<InterestListResponse | null>(null);
   const [received, setReceived] = useState<InterestListResponse | null>(null);
+  const [membership, setMembership] = useState<UserMembershipResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [noProfile, setNoProfile] = useState(false);
 
@@ -24,10 +25,12 @@ export default function DashboardPage() {
       }),
       interestApi.getSent({ page: 1, pageSize: 5 }).catch(() => null),
       interestApi.getReceived({ page: 1, pageSize: 5 }).catch(() => null),
-    ]).then(([p, s, r]) => {
+      membershipApi.getMe().catch(() => null),
+    ]).then(([p, s, r, m]) => {
       setProfile(p);
       setSent(s);
       setReceived(r);
+      setMembership(m);
       setLoading(false);
     });
   }, []);
@@ -103,6 +106,9 @@ export default function DashboardPage() {
           href="/interests/received"
         />
       </div>
+
+      {/* Membership card */}
+      {membership && <MembershipCard membership={membership} />}
 
       {/* Profile card */}
       {profile && (
@@ -390,6 +396,76 @@ function MissingFieldsPanel({ fields }: { fields: ProfileCompletionField[] }) {
           </ul>
         </div>
       )}
+    </div>
+  );
+}
+
+const PLAN_BADGE: Record<MembershipPlan, string> = {
+  Free:    'bg-gray-100 text-gray-700',
+  Basic:   'bg-blue-100 text-blue-700',
+  Premium: 'bg-primary-100 text-primary-700',
+  Vip:     'bg-amber-100 text-amber-700',
+};
+
+function MembershipCard({ membership }: { membership: UserMembershipResponse }) {
+  const plan = membership.plan as MembershipPlan;
+  const isUnlimited = membership.monthlyInterestLimit === -1;
+  const pct = isUnlimited
+    ? 100
+    : Math.min(100, Math.round((membership.interestsSentThisMonth / membership.monthlyInterestLimit) * 100));
+  const nearLimit = !isUnlimited && pct >= 80;
+
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">Membership</h2>
+        <span className={`badge font-semibold ${PLAN_BADGE[plan]}`}>{plan}</span>
+      </div>
+
+      {/* Monthly interest usage */}
+      <div className="mb-4">
+        <div className="flex justify-between text-sm text-gray-600 mb-1">
+          <span>Interests sent this month</span>
+          <span className={`font-medium ${nearLimit ? 'text-amber-600' : ''}`}>
+            {isUnlimited
+              ? `${membership.interestsSentThisMonth} / Unlimited`
+              : `${membership.interestsSentThisMonth} / ${membership.monthlyInterestLimit}`}
+          </span>
+        </div>
+        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className={`h-2 rounded-full transition-all ${nearLimit ? 'bg-amber-400' : 'bg-primary-500'}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        {nearLimit && !isUnlimited && (
+          <p className="text-xs text-amber-600 mt-1">
+            Almost at your monthly limit — upgrade to send more.
+          </p>
+        )}
+      </div>
+
+      {/* Feature flags */}
+      <div className="grid grid-cols-3 gap-2 text-xs text-center mb-4">
+        <FeaturePill label="Advanced Search" enabled={membership.advancedSearch} />
+        <FeaturePill label="Profile Boost"   enabled={membership.profileBoost} />
+        <FeaturePill label="Contact Unlock"  enabled={membership.contactUnlock} />
+      </div>
+
+      <Link href="/membership" className="btn-secondary text-sm">
+        {plan === 'Free' ? 'View plans' : 'Manage plan'}
+      </Link>
+    </div>
+  );
+}
+
+function FeaturePill({ label, enabled }: { label: string; enabled: boolean }) {
+  return (
+    <div className={`rounded-lg px-2 py-2 ${enabled ? 'bg-green-50' : 'bg-gray-50'}`}>
+      <p className={`font-semibold text-base mb-0.5 ${enabled ? 'text-green-600' : 'text-gray-400'}`}>
+        {enabled ? '✓' : '✕'}
+      </p>
+      <p className={enabled ? 'text-green-700' : 'text-gray-400'}>{label}</p>
     </div>
   );
 }

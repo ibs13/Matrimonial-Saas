@@ -413,6 +413,34 @@ export interface AuditLogListResponse {
   pageSize: number;
 }
 
+// ── Membership ────────────────────────────────────────────────────────────────
+
+export type MembershipPlan = 'Free' | 'Basic' | 'Premium' | 'Vip';
+
+export interface UserMembershipResponse {
+  plan: MembershipPlan;
+  startedAt: string;
+  expiresAt?: string;
+  /** -1 means unlimited */
+  monthlyInterestLimit: number;
+  interestsSentThisMonth: number;
+  advancedSearch: boolean;
+  profileBoost: boolean;
+  contactUnlock: boolean;
+  monthlyPriceBdt: number;
+}
+
+export interface PlanDetails {
+  plan: MembershipPlan;
+  tagline: string;
+  /** -1 means unlimited */
+  monthlyInterestLimit: number;
+  advancedSearch: boolean;
+  profileBoost: boolean;
+  contactUnlock: boolean;
+  monthlyPriceBdt: number;
+}
+
 export interface RecentActivityItem {
   action: string;
   adminEmail: string;

@@ -13,6 +13,7 @@ const navLinks = [
   { href: '/interests/sent', label: 'Sent' },
   { href: '/interests/received', label: 'Received' },
   { href: '/profile/viewers', label: 'Viewers' },
+  { href: '/membership', label: 'Plans' },
 ];
 
 const adminLinks = [

@@ -1,5 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
 import type {
+  UserMembershipResponse,
+  PlanDetails,
   AuthResponse,
   MeResponse,
   ProfileResponse,
@@ -307,6 +309,16 @@ export const notificationApi = {
 
   markAllAsRead: () =>
     http.patch("/api/notifications/read-all"),
+};
+
+// ── Membership ────────────────────────────────────────────────────────────────
+
+export const membershipApi = {
+  getPlans: () =>
+    http.get<PlanDetails[]>("/api/membership/plans").then((r) => r.data),
+
+  getMe: () =>
+    http.get<UserMembershipResponse>("/api/membership/me").then((r) => r.data),
 };
 
 // ── Admin ─────────────────────────────────────────────────────────────────────

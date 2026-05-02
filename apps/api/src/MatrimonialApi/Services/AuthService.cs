@@ -1,6 +1,7 @@
 using MatrimonialApi.Data;
 using MatrimonialApi.DTOs.Auth;
 using MatrimonialApi.Models;
+using MatrimonialApi.Models.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace MatrimonialApi.Services;
@@ -20,6 +21,7 @@ public class AuthService(AppDbContext db, TokenService tokenService, EmailVerifi
         };
 
         db.Users.Add(user);
+        db.UserMemberships.Add(new UserMembership { UserId = user.Id });
         await db.SaveChangesAsync();
 
         // Fire-and-forget is avoided: await so the token is committed before returning.

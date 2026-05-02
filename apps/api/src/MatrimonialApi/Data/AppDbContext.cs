@@ -16,6 +16,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<EmailVerificationToken> EmailVerificationTokens => Set<EmailVerificationToken>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<ProfileView> ProfileViews => Set<ProfileView>();
+    public DbSet<UserMembership> UserMemberships => Set<UserMembership>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -232,6 +233,24 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             // "Who viewed my profile?" list, newest first
             entity.HasIndex(v => new { v.ViewedUserId, v.ViewedAt })
                   .HasDatabaseName("IX_ProfileViews_ViewedUser");
+        });
+
+        modelBuilder.Entity<UserMembership>(entity =>
+        {
+            entity.HasKey(m => m.UserId);
+
+            entity.HasOne(m => m.User)
+                  .WithOne()
+                  .HasForeignKey<UserMembership>(m => m.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(m => m.Plan)
+                  .HasConversion<string>()
+                  .HasMaxLength(16)
+                  .IsRequired();
+
+            entity.HasIndex(m => m.Plan)
+                  .HasDatabaseName("IX_UserMemberships_Plan");
         });
 
         modelBuilder.Entity<Notification>(entity =>

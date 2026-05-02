@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MatrimonialApi.Services;
 
-public class InterestService(AppDbContext pgDb)
+public class InterestService(AppDbContext pgDb, MembershipService membershipService)
 {
     // ── Send ──────────────────────────────────────────────────────────────────
 
@@ -14,6 +14,11 @@ public class InterestService(AppDbContext pgDb)
     {
         if (senderId == req.ReceiverId)
             throw new ArgumentException("You cannot send an interest request to yourself.");
+
+        var withinLimit = await membershipService.CanSendInterestThisMonthAsync(senderId);
+        if (!withinLimit)
+            throw new InvalidOperationException(
+                "You have reached your monthly interest limit. Upgrade your plan to send more.");
 
         // Receiver must have an active profile
         var receiverExists = await pgDb.ProfileIndexes
