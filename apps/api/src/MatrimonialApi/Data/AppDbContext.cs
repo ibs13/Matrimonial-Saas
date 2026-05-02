@@ -317,6 +317,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             // User lookup (denormalised UserId speeds up per-user queries)
             entity.HasIndex(pa => new { pa.UserId, pa.AttemptedAt })
                   .HasDatabaseName("IX_PaymentAttempts_User");
+
+            // Prevent the same transaction ID being used twice across any order/user
+            entity.HasIndex(pa => pa.GatewayTransactionId)
+                  .IsUnique()
+                  .HasFilter("\"GatewayTransactionId\" IS NOT NULL")
+                  .HasDatabaseName("IX_PaymentAttempts_TxnId");
         });
 
         modelBuilder.Entity<ContactUnlock>(entity =>

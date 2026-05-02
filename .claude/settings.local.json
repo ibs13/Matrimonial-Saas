@@ -23,7 +23,8 @@
       "PowerShell(New-Item *)",
       "Bash(Get-ChildItem -Path \"D:\\\\Project\\\\matrimonial-saas\" -Recurse -Depth 2)",
       "Bash(Select-Object FullName)",
-      "PowerShell(head *)"
+      "PowerShell(head *)",
+      "Bash(npx eslint *)"
     ]
   }
 }

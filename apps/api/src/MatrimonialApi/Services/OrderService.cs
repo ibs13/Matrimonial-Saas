@@ -30,19 +30,154 @@ public class OrderService(AppDbContext pgDb)
         };
 
         pgDb.Orders.Add(order);
+        await pgDb.SaveChangesAsync();
 
-        // One Pending attempt is created immediately; the gateway will update it on callback
-        pgDb.PaymentAttempts.Add(new PaymentAttempt
+        return ToOrderResponse(order, attemptCount: 0, latest: null);
+    }
+
+    // ── Submit payment ────────────────────────────────────────────────────────
+
+    public async Task<OrderResponse> SubmitPaymentAsync(
+        Guid userId, Guid orderId, SubmitPaymentRequest req)
+    {
+        var order = await pgDb.Orders
+            .Include(o => o.PaymentAttempts)
+            .FirstOrDefaultAsync(o => o.Id == orderId)
+            ?? throw new KeyNotFoundException("Order not found.");
+
+        if (order.UserId != userId)
+            throw new UnauthorizedAccessException("Order does not belong to the current user.");
+
+        if (order.Status != OrderStatus.Pending)
+            throw new InvalidOperationException(
+                $"Cannot submit a payment for an order with status '{order.Status}'.");
+
+        // App-level duplicate transaction ID check (DB unique index is the backstop)
+        var txnId = req.TransactionId.Trim();
+        var duplicate = await pgDb.PaymentAttempts
+            .AnyAsync(pa => pa.GatewayTransactionId == txnId);
+        if (duplicate)
+            throw new InvalidOperationException(
+                "This transaction ID has already been submitted. Please check and try again.");
+
+        var attempt = new PaymentAttempt
         {
-            OrderId = order.Id,
+            OrderId = orderId,
             UserId = userId,
-            AmountBdt = def.MonthlyPriceBdt,
+            AmountBdt = order.AmountBdt,
             Status = PaymentAttemptStatus.Pending,
+            GatewayName = req.GatewayName.Trim(),
+            GatewayTransactionId = txnId,
+        };
+
+        order.Notes = req.Notes?.Trim();
+        pgDb.PaymentAttempts.Add(attempt);
+        await pgDb.SaveChangesAsync();
+
+        return ToOrderResponse(order, order.PaymentAttempts.Count, attempt);
+    }
+
+    // ── Admin: verify payment ─────────────────────────────────────────────────
+
+    public async Task<PaymentAttemptResponse> VerifyPaymentAsync(
+        Guid adminId, string adminEmail, Guid attemptId)
+    {
+        var attempt = await pgDb.PaymentAttempts
+            .Include(pa => pa.Order)
+            .FirstOrDefaultAsync(pa => pa.Id == attemptId)
+            ?? throw new KeyNotFoundException("Payment attempt not found.");
+
+        if (attempt.Status != PaymentAttemptStatus.Pending)
+            throw new InvalidOperationException(
+                $"Cannot verify an attempt with status '{attempt.Status}'.");
+
+        var now = DateTime.UtcNow;
+
+        attempt.Status = PaymentAttemptStatus.Paid;
+        attempt.CompletedAt = now;
+
+        var order = attempt.Order;
+        order.Status = OrderStatus.Paid;
+        order.PaidAt = now;
+
+        // Upsert UserMembership
+        var membership = await pgDb.UserMemberships.FindAsync(order.UserId);
+        if (membership is null)
+        {
+            membership = new UserMembership { UserId = order.UserId };
+            pgDb.UserMemberships.Add(membership);
+        }
+        membership.Plan = order.Plan;
+        membership.StartedAt = now;
+        membership.ExpiresAt = now.AddDays(order.DurationDays);
+        membership.UpdatedAt = now;
+
+        pgDb.AuditLogs.Add(new AuditLog
+        {
+            AdminId = adminId,
+            AdminEmail = adminEmail,
+            Action = "VerifyPayment",
+            EntityType = "PaymentAttempt",
+            EntityId = attemptId,
+            Reason = $"Verified txn {attempt.GatewayTransactionId} via {attempt.GatewayName}",
+        });
+
+        pgDb.Notifications.Add(new Notification
+        {
+            UserId = order.UserId,
+            Type = NotificationType.PaymentVerified,
+            Title = "Payment verified",
+            Body = $"Your payment for the {order.Plan} plan has been verified. Your membership is now active.",
         });
 
         await pgDb.SaveChangesAsync();
 
-        return ToOrderResponse(order, attemptCount: 1);
+        return ToAttemptResponse(attempt, order, adminEmail);
+    }
+
+    // ── Admin: reject payment ─────────────────────────────────────────────────
+
+    public async Task<PaymentAttemptResponse> RejectPaymentAsync(
+        Guid adminId, string adminEmail, Guid attemptId, string reason)
+    {
+        var attempt = await pgDb.PaymentAttempts
+            .Include(pa => pa.Order)
+            .FirstOrDefaultAsync(pa => pa.Id == attemptId)
+            ?? throw new KeyNotFoundException("Payment attempt not found.");
+
+        if (attempt.Status != PaymentAttemptStatus.Pending)
+            throw new InvalidOperationException(
+                $"Cannot reject an attempt with status '{attempt.Status}'.");
+
+        var now = DateTime.UtcNow;
+
+        attempt.Status = PaymentAttemptStatus.Failed;
+        attempt.FailureReason = reason;
+        attempt.CompletedAt = now;
+
+        pgDb.AuditLogs.Add(new AuditLog
+        {
+            AdminId = adminId,
+            AdminEmail = adminEmail,
+            Action = "RejectPayment",
+            EntityType = "PaymentAttempt",
+            EntityId = attemptId,
+            Reason = reason,
+        });
+
+        pgDb.Notifications.Add(new Notification
+        {
+            UserId = attempt.Order.UserId,
+            Type = NotificationType.PaymentRejected,
+            Title = "Payment not verified",
+            Body = string.IsNullOrWhiteSpace(reason)
+                ? "Your payment could not be verified. Please resubmit with a valid transaction ID."
+                : $"Your payment was rejected: {reason}",
+        });
+
+        await pgDb.SaveChangesAsync();
+
+        return ToAttemptResponse(attempt, attempt.Order, adminEmail);
     }
 
     // ── User: billing history ─────────────────────────────────────────────────
@@ -50,25 +185,20 @@ public class OrderService(AppDbContext pgDb)
     public async Task<OrderListResponse> GetMyOrdersAsync(Guid userId, int page, int pageSize)
     {
         var baseQuery = pgDb.Orders.Where(o => o.UserId == userId);
-
         var totalCount = await baseQuery.CountAsync();
 
-        var items = await baseQuery
+        var orders = await baseQuery
+            .Include(o => o.PaymentAttempts)
             .OrderByDescending(o => o.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(o => new OrderResponse
-            {
-                Id = o.Id,
-                Plan = o.Plan.ToString(),
-                AmountBdt = o.AmountBdt,
-                Status = o.Status.ToString(),
-                DurationDays = o.DurationDays,
-                AttemptCount = o.PaymentAttempts.Count,
-                CreatedAt = o.CreatedAt,
-                PaidAt = o.PaidAt,
-            })
             .ToListAsync();
+
+        var items = orders.Select(o =>
+        {
+            var latest = o.PaymentAttempts.OrderByDescending(pa => pa.AttemptedAt).FirstOrDefault();
+            return ToOrderResponse(o, o.PaymentAttempts.Count, latest);
+        }).ToList();
 
         return new OrderListResponse
         {
@@ -134,7 +264,7 @@ public class OrderService(AppDbContext pgDb)
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static OrderResponse ToOrderResponse(Order order, int attemptCount) => new()
+    private static OrderResponse ToOrderResponse(Order order, int attemptCount, PaymentAttempt? latest) => new()
     {
         Id = order.Id,
         Plan = order.Plan.ToString(),
@@ -144,5 +274,26 @@ public class OrderService(AppDbContext pgDb)
         AttemptCount = attemptCount,
         CreatedAt = order.CreatedAt,
         PaidAt = order.PaidAt,
+        LatestAttemptId = latest?.Id,
+        LatestAttemptStatus = latest?.Status.ToString(),
+        LatestGatewayName = latest?.GatewayName,
+        LatestTransactionId = latest?.GatewayTransactionId,
+        LatestFailureReason = latest?.FailureReason,
+    };
+
+    private static PaymentAttemptResponse ToAttemptResponse(PaymentAttempt pa, Order o, string userEmail) => new()
+    {
+        Id = pa.Id,
+        OrderId = pa.OrderId,
+        UserId = pa.UserId,
+        UserEmail = userEmail,
+        Plan = o.Plan.ToString(),
+        AmountBdt = pa.AmountBdt,
+        Status = pa.Status.ToString(),
+        GatewayName = pa.GatewayName,
+        GatewayTransactionId = pa.GatewayTransactionId,
+        FailureReason = pa.FailureReason,
+        AttemptedAt = pa.AttemptedAt,
+        CompletedAt = pa.CompletedAt,
     };
 }

@@ -144,6 +144,22 @@ public class AdminController(
         return Ok(response);
     }
 
+    // PATCH /api/admin/payment-attempts/{id}/verify — mark attempt as paid and activate membership
+    [HttpPatch("payment-attempts/{id:guid}/verify")]
+    public async Task<IActionResult> VerifyPayment(Guid id)
+    {
+        var response = await orderService.VerifyPaymentAsync(CurrentAdminId, CurrentAdminEmail, id);
+        return Ok(response);
+    }
+
+    // PATCH /api/admin/payment-attempts/{id}/reject — reject attempt, user may resubmit
+    [HttpPatch("payment-attempts/{id:guid}/reject")]
+    public async Task<IActionResult> RejectPayment(Guid id, [FromBody] RejectPaymentRequest request)
+    {
+        var response = await orderService.RejectPaymentAsync(CurrentAdminId, CurrentAdminEmail, id, request.Reason);
+        return Ok(response);
+    }
+
     // GET /api/admin/contact-unlocks?page=1&pageSize=20 — audit log of all contact unlock events
     [HttpGet("contact-unlocks")]
     public async Task<IActionResult> GetContactUnlocks(

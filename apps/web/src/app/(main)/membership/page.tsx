@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { membershipApi } from '@/lib/api';
+import { useRouter } from 'next/navigation';
+import { membershipApi, orderApi } from '@/lib/api';
 import { apiError } from '@/lib/utils';
 import Spinner from '@/components/ui/Spinner';
 import type { PlanDetails, UserMembershipResponse, MembershipPlan } from '@/types';
@@ -15,10 +16,25 @@ const PLAN_COLORS: Record<MembershipPlan, { ring: string; badge: string; btn: st
 };
 
 export default function MembershipPage() {
+  const router = useRouter();
   const [plans, setPlans] = useState<PlanDetails[]>([]);
   const [membership, setMembership] = useState<UserMembershipResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [upgrading, setUpgrading] = useState<MembershipPlan | null>(null);
+  const [upgradeError, setUpgradeError] = useState('');
+
+  const handleUpgrade = async (plan: MembershipPlan) => {
+    setUpgrading(plan);
+    setUpgradeError('');
+    try {
+      const order = await orderApi.create(plan);
+      router.push(`/billing/${order.id}/submit`);
+    } catch (err) {
+      setUpgradeError(apiError(err));
+      setUpgrading(null);
+    }
+  };
 
   useEffect(() => {
     Promise.all([
@@ -114,13 +130,17 @@ export default function MembershipPage() {
                 <button disabled className={`w-full py-2 rounded-lg text-sm font-medium ${colors.btn}`}>
                   Current plan
                 </button>
+              ) : planKey === 'Free' ? (
+                <button disabled className="w-full py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-400 cursor-not-allowed">
+                  Downgrade to Free
+                </button>
               ) : (
                 <button
-                  disabled
-                  title="Payment coming soon"
-                  className="w-full py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-400 cursor-not-allowed"
+                  onClick={() => handleUpgrade(planKey)}
+                  disabled={upgrading !== null}
+                  className={`w-full py-2 rounded-lg text-sm font-medium transition-colors ${colors.btn} disabled:opacity-60 disabled:cursor-not-allowed`}
                 >
-                  {planKey === 'Free' ? 'Downgrade' : 'Upgrade'} — coming soon
+                  {upgrading === planKey ? 'Creating order…' : 'Upgrade now'}
                 </button>
               )}
             </div>
@@ -128,9 +148,16 @@ export default function MembershipPage() {
         })}
       </div>
 
+      {upgradeError && (
+        <p className="text-sm text-red-600 bg-red-50 rounded-lg px-4 py-3">{upgradeError}</p>
+      )}
+
       <div className="rounded-xl border border-gray-100 bg-gray-50 px-6 py-5 text-center text-sm text-gray-500 space-y-1">
-        <p className="font-medium text-gray-700">Payment integration coming soon</p>
-        <p>All features are available for evaluation. Plan upgrades will be enabled in a future release.</p>
+        <p className="font-medium text-gray-700">Manual payment verification</p>
+        <p>
+          After choosing a plan, submit your bKash / Nagad / Rocket transaction ID.
+          Our team will verify and activate your membership within 24 hours.
+        </p>
         <Link href="/dashboard" className="inline-block mt-2 text-primary-600 hover:underline text-xs">
           ← Back to dashboard
         </Link>

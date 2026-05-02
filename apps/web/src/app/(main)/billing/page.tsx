@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { orderApi } from '@/lib/api';
 import { formatDate, apiError } from '@/lib/utils';
 import Spinner from '@/components/ui/Spinner';
-import type { OrderResponse, OrderListResponse, OrderStatus } from '@/types';
+import type { OrderResponse, OrderListResponse, OrderStatus, PaymentAttemptStatus } from '@/types';
 
 const STATUS_BADGE: Record<OrderStatus, string> = {
   Pending:   'bg-yellow-100 text-yellow-800',
@@ -15,7 +16,17 @@ const STATUS_BADGE: Record<OrderStatus, string> = {
   Expired:   'bg-orange-100 text-orange-700',
 };
 
+const ATTEMPT_BADGE: Record<PaymentAttemptStatus, string> = {
+  Pending:   'bg-blue-100  text-blue-700',
+  Paid:      'bg-green-100 text-green-800',
+  Failed:    'bg-red-100   text-red-800',
+  Cancelled: 'bg-gray-100  text-gray-600',
+};
+
 export default function BillingPage() {
+  const searchParams = useSearchParams();
+  const justSubmitted = searchParams.get('submitted') === '1';
+
   const [data, setData] = useState<OrderListResponse | null>(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -42,11 +53,14 @@ export default function BillingPage() {
         </Link>
       </div>
 
-      {/* Gateway notice */}
-      <div className="rounded-xl border border-gray-100 bg-gray-50 px-5 py-4 text-sm text-gray-500">
-        <span className="font-medium text-gray-700">Payment integration coming soon.</span>{' '}
-        Orders are created when you choose a plan. Payment processing will be enabled in a future release.
-      </div>
+      {justSubmitted && (
+        <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-3">
+          <p className="text-sm font-medium text-green-800">Payment submitted for verification</p>
+          <p className="text-xs text-green-600 mt-0.5">
+            Our team will review your transaction within 24 hours and activate your membership.
+          </p>
+        </div>
+      )}
 
       {loading && (
         <div className="flex justify-center py-12">
@@ -109,29 +123,76 @@ export default function BillingPage() {
 
 function OrderRow({ order }: { order: OrderResponse }) {
   const status = order.status as OrderStatus;
+  const attemptStatus = order.latestAttemptStatus as PaymentAttemptStatus | undefined;
+
+  const canSubmit =
+    status === 'Pending' &&
+    (order.latestAttemptStatus === undefined ||
+      order.latestAttemptStatus === 'Failed' ||
+      order.latestAttemptStatus === 'Cancelled');
+
+  const awaitingVerification = status === 'Pending' && order.latestAttemptStatus === 'Pending';
+
   return (
-    <div className="flex items-center gap-4 px-5 py-4 bg-white hover:bg-gray-50 transition-colors">
-      {/* Plan icon */}
-      <div className="w-10 h-10 rounded-full bg-primary-50 text-primary-600 font-bold flex items-center justify-center flex-shrink-0 text-sm">
-        {order.plan[0]}
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="font-semibold text-gray-900">{order.plan} Plan</p>
-          <span className={`badge text-xs ${STATUS_BADGE[status]}`}>{order.status}</span>
+    <div className="bg-white px-5 py-4 hover:bg-gray-50 transition-colors">
+      <div className="flex items-center gap-4">
+        <div className="w-10 h-10 rounded-full bg-primary-50 text-primary-600 font-bold flex items-center justify-center flex-shrink-0 text-sm">
+          {order.plan[0]}
         </div>
-        <p className="text-xs text-gray-500 mt-0.5">
-          {order.durationDays}-day subscription · {order.attemptCount} payment attempt{order.attemptCount !== 1 ? 's' : ''}
-        </p>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="font-semibold text-gray-900">{order.plan} Plan</p>
+            <span className={`badge text-xs ${STATUS_BADGE[status]}`}>{order.status}</span>
+          </div>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {order.durationDays}-day subscription · {order.attemptCount} payment attempt{order.attemptCount !== 1 ? 's' : ''}
+          </p>
+        </div>
+
+        <div className="text-right flex-shrink-0">
+          <p className="font-semibold text-gray-900">৳{order.amountBdt.toLocaleString()}</p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {order.paidAt ? `Paid ${formatDate(order.paidAt)}` : formatDate(order.createdAt)}
+          </p>
+        </div>
       </div>
 
-      <div className="text-right flex-shrink-0">
-        <p className="font-semibold text-gray-900">৳{order.amountBdt.toLocaleString()}</p>
-        <p className="text-xs text-gray-400 mt-0.5">
-          {order.paidAt ? `Paid ${formatDate(order.paidAt)}` : formatDate(order.createdAt)}
+      {/* Latest attempt info */}
+      {attemptStatus && (
+        <div className="mt-3 ml-14 flex items-center gap-2 flex-wrap">
+          <span className={`badge text-xs ${ATTEMPT_BADGE[attemptStatus]}`}>
+            {attemptStatus === 'Pending' ? 'Awaiting verification' : attemptStatus}
+          </span>
+          {order.latestGatewayName && (
+            <span className="text-xs text-gray-500">{order.latestGatewayName}</span>
+          )}
+          {order.latestTransactionId && (
+            <span className="text-xs font-mono text-gray-400">{order.latestTransactionId}</span>
+          )}
+          {order.latestFailureReason && (
+            <span className="text-xs text-red-500">{order.latestFailureReason}</span>
+          )}
+        </div>
+      )}
+
+      {/* Action CTAs */}
+      {canSubmit && (
+        <div className="mt-3 ml-14">
+          <Link
+            href={`/billing/${order.id}/submit`}
+            className="btn-primary text-xs py-1.5 px-3 inline-block"
+          >
+            {order.latestAttemptStatus === 'Failed' ? 'Resubmit payment' : 'Submit payment'}
+          </Link>
+        </div>
+      )}
+
+      {awaitingVerification && (
+        <p className="mt-3 ml-14 text-xs text-blue-600">
+          Payment submitted — awaiting admin verification (up to 24 hours).
         </p>
-      </div>
+      )}
     </div>
   );
 }

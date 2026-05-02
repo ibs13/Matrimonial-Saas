@@ -10,4 +10,6 @@ public enum NotificationType
     PhotoApproved,
     PhotoRejected,
     ReportReviewed,
+    PaymentVerified,
+    PaymentRejected,
 }

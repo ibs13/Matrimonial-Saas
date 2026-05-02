@@ -33,4 +33,12 @@ public class OrderController(OrderService orderService) : ControllerBase
         var response = await orderService.GetMyOrdersAsync(CurrentUserId, page, pageSize);
         return Ok(response);
     }
+
+    // POST /api/orders/{orderId}/submit-payment — user submits transaction details for manual verification
+    [HttpPost("{orderId:guid}/submit-payment")]
+    public async Task<IActionResult> SubmitPayment(Guid orderId, [FromBody] SubmitPaymentRequest request)
+    {
+        var response = await orderService.SubmitPaymentAsync(CurrentUserId, orderId, request);
+        return Ok(response);
+    }
 }

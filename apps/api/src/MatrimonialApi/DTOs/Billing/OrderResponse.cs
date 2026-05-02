@@ -10,4 +10,11 @@ public class OrderResponse
     public int AttemptCount { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? PaidAt { get; set; }
+
+    // Latest payment attempt — null when no attempt has been submitted yet
+    public Guid? LatestAttemptId { get; set; }
+    public string? LatestAttemptStatus { get; set; }
+    public string? LatestGatewayName { get; set; }
+    public string? LatestTransactionId { get; set; }
+    public string? LatestFailureReason { get; set; }
 }

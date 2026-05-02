@@ -36,6 +36,7 @@ import type {
   AdminDashboardMetrics,
   OrderResponse,
   OrderListResponse,
+  PaymentAttemptResponse,
   PaymentAttemptListResponse,
 } from "@/types";
 
@@ -343,6 +344,14 @@ export const orderApi = {
 
   getMine: (params?: { page?: number; pageSize?: number }) =>
     http.get<OrderListResponse>("/api/orders/me", { params }).then((r) => r.data),
+
+  submitPayment: (
+    orderId: string,
+    data: { gatewayName: string; transactionId: string; notes?: string },
+  ) =>
+    http
+      .post<OrderResponse>(`/api/orders/${orderId}/submit-payment`, data)
+      .then((r) => r.data),
 };
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
@@ -422,5 +431,15 @@ export const adminApi = {
   }) =>
     http
       .get<PaymentAttemptListResponse>("/api/admin/payment-attempts", { params })
+      .then((r) => r.data),
+
+  verifyPayment: (attemptId: string) =>
+    http
+      .patch<PaymentAttemptResponse>(`/api/admin/payment-attempts/${attemptId}/verify`)
+      .then((r) => r.data),
+
+  rejectPayment: (attemptId: string, reason: string) =>
+    http
+      .patch<PaymentAttemptResponse>(`/api/admin/payment-attempts/${attemptId}/reject`, { reason })
       .then((r) => r.data),
 };

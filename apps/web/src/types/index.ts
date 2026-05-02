@@ -444,6 +444,11 @@ export interface OrderResponse {
   attemptCount: number;
   createdAt: string;
   paidAt?: string;
+  latestAttemptId?: string;
+  latestAttemptStatus?: PaymentAttemptStatus;
+  latestGatewayName?: string;
+  latestTransactionId?: string;
+  latestFailureReason?: string;
 }
 
 export interface OrderListResponse {

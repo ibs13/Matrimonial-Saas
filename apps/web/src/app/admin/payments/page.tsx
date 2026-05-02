@@ -63,6 +63,8 @@ export default function AdminPaymentsPage() {
     setPage(1);
   };
 
+  const handleAction = () => load(page, statusFilter, planFilter);
+
   return (
     <div className="space-y-6">
       <div>
@@ -144,13 +146,14 @@ export default function AdminPaymentsPage() {
                       <th className="text-left px-4 py-3 font-medium text-gray-600">Plan</th>
                       <th className="text-left px-4 py-3 font-medium text-gray-600">Amount</th>
                       <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                      <th className="text-left px-4 py-3 font-medium text-gray-600">Gateway</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Gateway / TxnID</th>
                       <th className="text-left px-4 py-3 font-medium text-gray-600">Date</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-white">
                     {data?.items.map((attempt) => (
-                      <AttemptRow key={attempt.id} attempt={attempt} />
+                      <AttemptRow key={attempt.id} attempt={attempt} onAction={handleAction} />
                     ))}
                   </tbody>
                 </table>
@@ -185,44 +188,142 @@ export default function AdminPaymentsPage() {
   );
 }
 
-function AttemptRow({ attempt }: { attempt: PaymentAttemptResponse }) {
+function AttemptRow({
+  attempt,
+  onAction,
+}: {
+  attempt: PaymentAttemptResponse;
+  onAction: () => void;
+}) {
   const status = attempt.status as PaymentAttemptStatus;
   const plan   = attempt.plan   as MembershipPlan;
 
+  const [actioning, setActioning] = useState<'verify' | 'reject' | null>(null);
+  const [showReject, setShowReject] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [actionError, setActionError] = useState('');
+
+  const handleVerify = async () => {
+    setActioning('verify');
+    setActionError('');
+    try {
+      await adminApi.verifyPayment(attempt.id);
+      onAction();
+    } catch (err) {
+      setActionError(apiError(err));
+    } finally {
+      setActioning(null);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!rejectReason.trim()) {
+      setActionError('Rejection reason is required.');
+      return;
+    }
+    setActioning('reject');
+    setActionError('');
+    try {
+      await adminApi.rejectPayment(attempt.id, rejectReason.trim());
+      onAction();
+    } catch (err) {
+      setActionError(apiError(err));
+      setActioning(null);
+    }
+  };
+
   return (
-    <tr className="hover:bg-gray-50 transition-colors">
-      <td className="px-4 py-3">
-        <p className="font-medium text-gray-900 truncate max-w-[180px]">{attempt.userEmail}</p>
-        <p className="text-xs text-gray-400 font-mono">{attempt.orderId.slice(0, 8)}…</p>
-      </td>
-      <td className="px-4 py-3">
-        <span className={`badge ${PLAN_BADGE[plan]}`}>{attempt.plan}</span>
-      </td>
-      <td className="px-4 py-3 font-semibold text-gray-900">
-        ৳{attempt.amountBdt.toLocaleString()}
-      </td>
-      <td className="px-4 py-3">
-        <span className={`badge ${STATUS_BADGE[status]}`}>{attempt.status}</span>
-        {attempt.failureReason && (
-          <p className="text-xs text-red-500 mt-0.5 max-w-[140px] truncate" title={attempt.failureReason}>
-            {attempt.failureReason}
-          </p>
-        )}
-      </td>
-      <td className="px-4 py-3 text-gray-500">
-        {attempt.gatewayName ?? <span className="text-gray-300">—</span>}
-        {attempt.gatewayTransactionId && (
-          <p className="text-xs font-mono text-gray-400 truncate max-w-[120px]">
-            {attempt.gatewayTransactionId}
-          </p>
-        )}
-      </td>
-      <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-        {formatDate(attempt.attemptedAt)}
-        {attempt.completedAt && (
-          <p className="text-xs text-gray-400">Done {formatDate(attempt.completedAt)}</p>
-        )}
-      </td>
-    </tr>
+    <>
+      <tr className="hover:bg-gray-50 transition-colors">
+        <td className="px-4 py-3">
+          <p className="font-medium text-gray-900 truncate max-w-[180px]">{attempt.userEmail}</p>
+          <p className="text-xs text-gray-400 font-mono">{attempt.orderId.slice(0, 8)}…</p>
+        </td>
+        <td className="px-4 py-3">
+          <span className={`badge ${PLAN_BADGE[plan]}`}>{attempt.plan}</span>
+        </td>
+        <td className="px-4 py-3 font-semibold text-gray-900">
+          ৳{attempt.amountBdt.toLocaleString()}
+        </td>
+        <td className="px-4 py-3">
+          <span className={`badge ${STATUS_BADGE[status]}`}>{attempt.status}</span>
+          {attempt.failureReason && (
+            <p className="text-xs text-red-500 mt-0.5 max-w-[140px] truncate" title={attempt.failureReason}>
+              {attempt.failureReason}
+            </p>
+          )}
+        </td>
+        <td className="px-4 py-3 text-gray-500">
+          {attempt.gatewayName ?? <span className="text-gray-300">—</span>}
+          {attempt.gatewayTransactionId && (
+            <p className="text-xs font-mono text-gray-400 truncate max-w-[120px]">
+              {attempt.gatewayTransactionId}
+            </p>
+          )}
+        </td>
+        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+          {formatDate(attempt.attemptedAt)}
+          {attempt.completedAt && (
+            <p className="text-xs text-gray-400">Done {formatDate(attempt.completedAt)}</p>
+          )}
+        </td>
+        <td className="px-4 py-3">
+          {status === 'Pending' && attempt.gatewayTransactionId ? (
+            <div className="flex gap-2">
+              <button
+                onClick={handleVerify}
+                disabled={actioning !== null}
+                className="btn-primary text-xs py-1 px-2 disabled:opacity-60"
+              >
+                {actioning === 'verify' ? '…' : 'Verify'}
+              </button>
+              <button
+                onClick={() => { setShowReject((v) => !v); setActionError(''); }}
+                disabled={actioning !== null}
+                className="btn-danger text-xs py-1 px-2 disabled:opacity-60"
+              >
+                Reject
+              </button>
+            </div>
+          ) : (
+            <span className="text-gray-300 text-xs">—</span>
+          )}
+        </td>
+      </tr>
+
+      {/* Inline reject form */}
+      {showReject && status === 'Pending' && (
+        <tr className="bg-red-50">
+          <td colSpan={7} className="px-4 py-3">
+            <div className="flex items-center gap-3">
+              <input
+                type="text"
+                className="input flex-1 text-sm"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Rejection reason (required)…"
+                maxLength={500}
+              />
+              <button
+                onClick={handleReject}
+                disabled={actioning !== null}
+                className="btn-danger text-sm py-2 px-4 disabled:opacity-60"
+              >
+                {actioning === 'reject' ? 'Rejecting…' : 'Confirm reject'}
+              </button>
+              <button
+                onClick={() => { setShowReject(false); setRejectReason(''); setActionError(''); }}
+                className="btn-secondary text-sm py-2 px-3"
+              >
+                Cancel
+              </button>
+            </div>
+            {actionError && (
+              <p className="text-xs text-red-600 mt-2">{actionError}</p>
+            )}
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
