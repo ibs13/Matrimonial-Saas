@@ -536,4 +536,20 @@ export const chatApi = {
 
   getUnreadCount: () =>
     http.get<{ count: number }>('/api/chat/unread-count').then((r) => r.data),
+
+  reportMessage: (messageId: string, reason: string) =>
+    http.post(`/api/chat/messages/${messageId}/report`, { reason }),
+};
+
+export const adminChatApi = {
+  getReports: (params?: { status?: string; page?: number; pageSize?: number }) =>
+    http
+      .get<import('@/types').MessageReportListResponse>('/api/admin/chat/reports', { params })
+      .then((r) => r.data),
+
+  dismissReport: (reportId: string) =>
+    http.patch(`/api/admin/chat/reports/${reportId}/dismiss`),
+
+  closeConversation: (conversationId: string) =>
+    http.post(`/api/admin/chat/conversations/${conversationId}/close`),
 };

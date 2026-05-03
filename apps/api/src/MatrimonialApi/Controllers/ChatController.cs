@@ -76,4 +76,14 @@ public class ChatController(ChatService chatService) : ControllerBase
         var count = await chatService.GetUnreadCountAsync(CurrentUserId);
         return Ok(new { count });
     }
+
+    // POST /api/chat/messages/{messageId}/report
+    [HttpPost("messages/{messageId:guid}/report")]
+    public async Task<IActionResult> ReportMessage(
+        Guid messageId,
+        [FromBody] ReportMessageRequest request)
+    {
+        await chatService.ReportMessageAsync(CurrentUserId, messageId, request.Reason);
+        return NoContent();
+    }
 }

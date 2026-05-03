@@ -27,6 +27,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<MessageRead> MessageReads => Set<MessageRead>();
     public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
+    public DbSet<MessageReport> MessageReports => Set<MessageReport>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -547,6 +548,32 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             entity.HasIndex(b => b.BlockerId)
                   .HasDatabaseName("IX_UserBlocks_Blocker");
+        });
+
+        modelBuilder.Entity<MessageReport>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+
+            entity.HasOne(r => r.Message)
+                  .WithMany()
+                  .HasForeignKey(r => r.MessageId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(r => r.Reporter)
+                  .WithMany()
+                  .HasForeignKey(r => r.ReporterId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.Property(r => r.Reason).HasMaxLength(300).IsRequired();
+            entity.Property(r => r.Status).HasMaxLength(16).IsRequired();
+
+            // One report per (message, reporter) pair — prevents duplicate spam reports
+            entity.HasIndex(r => new { r.MessageId, r.ReporterId })
+                  .IsUnique()
+                  .HasDatabaseName("IX_MessageReports_Pair");
+
+            entity.HasIndex(r => new { r.Status, r.CreatedAt })
+                  .HasDatabaseName("IX_MessageReports_Status");
         });
     }
 }

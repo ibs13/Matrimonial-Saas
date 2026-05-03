@@ -53,7 +53,10 @@ builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<ContactUnlockService>();
 builder.Services.AddScoped<SupportService>();
 builder.Services.AddScoped<MatchScoringService>();
+builder.Services.AddSingleton<BannedWordFilterService>();
 builder.Services.AddScoped<ChatService>();
+builder.Services.AddScoped<ChatModerationService>();
+builder.Services.AddMemoryCache();
 
 // AI match explainer: use Anthropic if an API key is configured, otherwise fall back to
 // deterministic text so the feature works in development without any credentials.

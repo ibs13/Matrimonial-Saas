@@ -10,4 +10,5 @@ public class ConversationListItem
     public DateTime? LastMessageAt { get; set; }
     public int UnreadCount { get; set; }
     public bool IsBlocked { get; set; }
+    public bool IsClosed { get; set; }
 }

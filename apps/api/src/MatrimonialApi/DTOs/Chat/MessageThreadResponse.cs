@@ -14,4 +14,5 @@ public class MessageThreadResponse
     public int PageSize { get; set; }
     public int TotalPages { get; set; }
     public bool IsBlocked { get; set; }
+    public bool IsClosed { get; set; }
 }

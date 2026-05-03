@@ -663,6 +663,7 @@ export interface ConversationListItem {
   lastMessageAt?: string;
   unreadCount: number;
   isBlocked: boolean;
+  isClosed: boolean;
 }
 
 export interface MessageResponse {
@@ -671,6 +672,7 @@ export interface MessageResponse {
   body: string;
   createdAt: string;
   isRead: boolean;
+  isReported: boolean;
 }
 
 export interface MessageThreadResponse {
@@ -684,4 +686,30 @@ export interface MessageThreadResponse {
   pageSize: number;
   totalPages: number;
   isBlocked: boolean;
+  isClosed: boolean;
+}
+
+// ── Admin chat moderation ─────────────────────────────────────────────────────
+
+export interface MessageReportItem {
+  reportId: string;
+  messageId: string;
+  messageBody: string;
+  conversationId: string;
+  reporterId: string;
+  reporterName: string;
+  senderId: string;
+  senderName: string;
+  reason: string;
+  status: string;
+  createdAt: string;
+  isConversationClosed: boolean;
+}
+
+export interface MessageReportListResponse {
+  items: MessageReportItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }

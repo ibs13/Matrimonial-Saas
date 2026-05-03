@@ -10,6 +10,8 @@ public class Conversation
 
     public DateTime? LastMessageAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public bool IsClosed { get; set; }
+    public DateTime? ClosedAt { get; set; }
 
     public User User1 { get; set; } = null!;
     public User User2 { get; set; } = null!;

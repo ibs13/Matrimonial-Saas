@@ -25,6 +25,7 @@ const adminLinks = [
   { href: '/admin/profiles', label: 'Review Queue' },
   { href: '/admin/payments', label: 'Payments' },
   { href: '/admin/support', label: 'Support Queue' },
+  { href: '/admin/chat', label: 'Chat Reports' },
 ];
 
 export default function Navbar() {

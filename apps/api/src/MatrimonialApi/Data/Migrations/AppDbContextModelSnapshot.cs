@@ -480,8 +480,14 @@ namespace MatrimonialApi.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsClosed")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime?>("LastMessageAt")
                         .HasColumnType("timestamp with time zone");
@@ -593,6 +599,49 @@ namespace MatrimonialApi.Data.Migrations
                         .HasDatabaseName("IX_UserBlocks_BlockedId");
 
                     b.ToTable("UserBlocks");
+                });
+
+            modelBuilder.Entity("MatrimonialApi.Models.MessageReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<Guid?>("ReviewedByAdminId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ReporterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageId", "ReporterId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_MessageReports_Pair");
+
+                    b.HasIndex("Status", "CreatedAt")
+                        .HasDatabaseName("IX_MessageReports_Status");
+
+                    b.ToTable("MessageReports");
                 });
 
             modelBuilder.Entity("MatrimonialApi.Models.ProfileReport", b =>
@@ -1037,6 +1086,24 @@ namespace MatrimonialApi.Data.Migrations
 
                     b.Navigation("Blocker");
                     b.Navigation("Blocked");
+                });
+
+            modelBuilder.Entity("MatrimonialApi.Models.MessageReport", b =>
+                {
+                    b.HasOne("MatrimonialApi.Models.Message", "Message")
+                        .WithMany()
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MatrimonialApi.Models.User", "Reporter")
+                        .WithMany()
+                        .HasForeignKey("ReporterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Message");
+                    b.Navigation("Reporter");
                 });
 
             modelBuilder.Entity("MatrimonialApi.Models.ProfileReport", b =>

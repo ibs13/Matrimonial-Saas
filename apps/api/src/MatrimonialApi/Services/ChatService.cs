@@ -3,17 +3,21 @@ using MatrimonialApi.DTOs.Chat;
 using MatrimonialApi.Models;
 using MatrimonialApi.Models.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MatrimonialApi.Services;
 
-public class ChatService(AppDbContext db)
+public class ChatService(
+    AppDbContext db,
+    IMemoryCache cache,
+    BannedWordFilterService bannedWordFilter,
+    IConfiguration config)
 {
+    private int MaxMessagesPerMinute =>
+        config.GetValue("Chat:RateLimit:MaxMessagesPerMinute", 20);
+
     // ── Access guards ─────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Checks everything needed to VIEW a thread:
-    /// sender must be active, accepted interest must exist, no block.
-    /// </summary>
     private async Task ValidateThreadAccessAsync(Guid userId, Guid otherUserId)
     {
         if (userId == otherUserId)
@@ -33,9 +37,6 @@ public class ChatService(AppDbContext db)
                 "Chat is only available after an interest request has been accepted.");
     }
 
-    /// <summary>
-    /// Additional checks for SENDING: both profiles must be Active, no block in either direction.
-    /// </summary>
     private async Task ValidateSendAsync(Guid senderId, Guid otherUserId)
     {
         await ValidateThreadAccessAsync(senderId, otherUserId);
@@ -55,6 +56,32 @@ public class ChatService(AppDbContext db)
         if (blocked)
             throw new InvalidOperationException(
                 "You cannot send messages — one of you has blocked the other.");
+
+        // Check if admin has closed this conversation
+        var conv = await FindConversationAsync(senderId, otherUserId);
+        if (conv?.IsClosed == true)
+            throw new InvalidOperationException(
+                "This conversation has been closed by an admin.");
+    }
+
+    // ── Rate limiting ─────────────────────────────────────────────────────────
+
+    private void EnforceRateLimit(Guid userId)
+    {
+        var minute = DateTime.UtcNow.ToString("yyyyMMddHHmm");
+        var key = $"chat_rate:{userId}:{minute}";
+
+        var count = cache.GetOrCreate(key, entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2);
+            return 0;
+        });
+
+        if (count >= MaxMessagesPerMinute)
+            throw new InvalidOperationException(
+                $"You're sending messages too quickly. Limit is {MaxMessagesPerMinute} per minute.");
+
+        cache.Set(key, count + 1, TimeSpan.FromMinutes(2));
     }
 
     // ── Conversation helpers ──────────────────────────────────────────────────
@@ -95,13 +122,11 @@ public class ChatService(AppDbContext db)
         var otherIds = convs.Select(c => c.User1Id == userId ? c.User2Id : c.User1Id).ToList();
         var convIds = convs.Select(c => c.Id).ToList();
 
-        // Batch-fetch profile display data
         var profiles = await db.ProfileIndexes
             .Where(p => otherIds.Contains(p.Id))
             .Select(p => new { p.Id, p.DisplayName, p.PhotoUrl })
             .ToDictionaryAsync(p => p.Id);
 
-        // Batch unread count per conversation
         var unreadBatch = await db.Messages
             .Where(m => convIds.Contains(m.ConversationId) && m.SenderId != userId &&
                         !db.MessageReads.Any(r => r.MessageId == m.Id && r.ReaderId == userId))
@@ -109,7 +134,6 @@ public class ChatService(AppDbContext db)
             .Select(g => new { ConvId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.ConvId, x => x.Count);
 
-        // Batch last message
         var lastMsgs = await db.Messages
             .Where(m => convIds.Contains(m.ConversationId))
             .GroupBy(m => m.ConversationId)
@@ -121,7 +145,6 @@ public class ChatService(AppDbContext db)
             })
             .ToDictionaryAsync(x => x.ConvId);
 
-        // Batch block check
         var blockedOtherIds = await db.UserBlocks
             .Where(b =>
                 (b.BlockerId == userId && otherIds.Contains(b.BlockedId)) ||
@@ -149,6 +172,7 @@ public class ChatService(AppDbContext db)
                 LastMessageAt = last?.At,
                 UnreadCount = unread,
                 IsBlocked = blockedSet.Contains(otherId),
+                IsClosed = c.IsClosed,
             };
         }).ToList();
     }
@@ -182,26 +206,42 @@ public class ChatService(AppDbContext db)
                 PageSize = pageSize,
                 TotalPages = 0,
                 IsBlocked = isBlocked,
+                IsClosed = false,
             };
         }
 
-        // Return newest pageSize messages in chronological order (ascending for display)
         var total = await db.Messages.CountAsync(m => m.ConversationId == conv.Id);
 
-        var msgs = await db.Messages
+        var rawMsgs = await db.Messages
             .Where(m => m.ConversationId == conv.Id)
             .OrderByDescending(m => m.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(m => new MessageResponse
-            {
-                Id = m.Id,
-                SenderId = m.SenderId,
-                Body = m.Body,
-                CreatedAt = m.CreatedAt,
-                IsRead = db.MessageReads.Any(r => r.MessageId == m.Id),
-            })
+            .Select(m => new { m.Id, m.SenderId, m.Body, m.CreatedAt })
             .ToListAsync();
+
+        // Batch-check read receipts and reports for these messages
+        var msgIds = rawMsgs.Select(m => m.Id).ToList();
+
+        var readMsgIds = (await db.MessageReads
+            .Where(r => msgIds.Contains(r.MessageId))
+            .Select(r => r.MessageId)
+            .ToListAsync()).ToHashSet();
+
+        var reportedMsgIds = (await db.MessageReports
+            .Where(r => msgIds.Contains(r.MessageId) && r.ReporterId == userId)
+            .Select(r => r.MessageId)
+            .ToListAsync()).ToHashSet();
+
+        var msgs = rawMsgs.Select(m => new MessageResponse
+        {
+            Id = m.Id,
+            SenderId = m.SenderId,
+            Body = m.Body,
+            CreatedAt = m.CreatedAt,
+            IsRead = readMsgIds.Contains(m.Id),
+            IsReported = reportedMsgIds.Contains(m.Id),
+        }).ToList();
 
         msgs.Reverse(); // oldest-first for rendering
 
@@ -217,13 +257,21 @@ public class ChatService(AppDbContext db)
             PageSize = pageSize,
             TotalPages = (int)Math.Ceiling(total / (double)pageSize),
             IsBlocked = isBlocked,
+            IsClosed = conv.IsClosed,
         };
     }
 
     public async Task<MessageResponse> SendMessageAsync(
         Guid senderId, Guid otherUserId, SendMessageRequest req)
     {
+        // Rate limit before validation to avoid DB queries on flooded users
+        EnforceRateLimit(senderId);
+
         await ValidateSendAsync(senderId, otherUserId);
+
+        if (bannedWordFilter.ContainsBannedWord(req.Body))
+            throw new ArgumentException(
+                "Your message contains prohibited content and could not be sent.");
 
         var conv = await GetOrCreateConversationAsync(senderId, otherUserId);
 
@@ -259,6 +307,7 @@ public class ChatService(AppDbContext db)
             Body = message.Body,
             CreatedAt = message.CreatedAt,
             IsRead = false,
+            IsReported = false,
         };
     }
 
@@ -294,7 +343,7 @@ public class ChatService(AppDbContext db)
         var exists = await db.UserBlocks.AnyAsync(
             b => b.BlockerId == blockerId && b.BlockedId == blockedId);
 
-        if (exists) return; // idempotent
+        if (exists) return;
 
         db.UserBlocks.Add(new UserBlock { BlockerId = blockerId, BlockedId = blockedId });
         await db.SaveChangesAsync();
@@ -319,5 +368,37 @@ public class ChatService(AppDbContext db)
         return await db.Messages
             .Where(m => myConvIds.Contains(m.ConversationId) && m.SenderId != userId)
             .CountAsync(m => !db.MessageReads.Any(r => r.MessageId == m.Id && r.ReaderId == userId));
+    }
+
+    public async Task ReportMessageAsync(Guid reporterId, Guid messageId, string reason)
+    {
+        var message = await db.Messages
+            .Include(m => m.Conversation)
+            .FirstOrDefaultAsync(m => m.Id == messageId)
+            ?? throw new KeyNotFoundException("Message not found.");
+
+        var conv = message.Conversation;
+
+        // Reporter must be a participant
+        if (conv.User1Id != reporterId && conv.User2Id != reporterId)
+            throw new UnauthorizedAccessException("You are not a participant in this conversation.");
+
+        // Cannot report own message
+        if (message.SenderId == reporterId)
+            throw new ArgumentException("You cannot report your own message.");
+
+        // Idempotent — silently ignore duplicate reports
+        var exists = await db.MessageReports.AnyAsync(
+            r => r.MessageId == messageId && r.ReporterId == reporterId);
+        if (exists) return;
+
+        db.MessageReports.Add(new MessageReport
+        {
+            MessageId = messageId,
+            ReporterId = reporterId,
+            Reason = reason,
+        });
+
+        await db.SaveChangesAsync();
     }
 }

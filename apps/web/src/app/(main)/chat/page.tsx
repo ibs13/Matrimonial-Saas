@@ -103,10 +103,13 @@ export default function ChatPage() {
                 </div>
                 <p className={`text-sm truncate mt-0.5 ${
                   conv.isBlocked ? 'text-red-400 italic' :
+                  conv.isClosed ? 'text-orange-400 italic' :
                   conv.unreadCount > 0 ? 'text-gray-700 font-medium' : 'text-gray-500'
                 }`}>
                   {conv.isBlocked
                     ? 'Blocked'
+                    : conv.isClosed
+                    ? 'Closed by admin'
                     : conv.lastMessage ?? 'No messages yet'}
                 </p>
               </div>

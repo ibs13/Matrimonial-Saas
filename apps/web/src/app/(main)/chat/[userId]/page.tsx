@@ -21,6 +21,9 @@ export default function ChatThreadPage() {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
   const [blocking, setBlocking] = useState(false);
+  const [reportingId, setReportingId] = useState<string | null>(null);
+  const [reportReason, setReportReason] = useState('');
+  const [reportPromptMsgId, setReportPromptMsgId] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const myId = user?.id ?? '';
@@ -37,7 +40,6 @@ export default function ChatThreadPage() {
         setThread(data);
         setMessages(data.messages);
         setError('');
-        // Mark incoming messages as read
         chatApi.markRead(userId).catch(() => undefined);
       } catch (err) {
         setError(apiError(err));
@@ -52,12 +54,10 @@ export default function ChatThreadPage() {
     loadThread();
   }, [loadThread]);
 
-  // Scroll to bottom when messages load or new ones arrive
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  // Poll every 10 seconds for new messages
   useEffect(() => {
     const timer = setInterval(() => loadThread(true), 10_000);
     return () => clearInterval(timer);
@@ -105,6 +105,24 @@ export default function ChatThreadPage() {
     }
   };
 
+  const handleReport = async (messageId: string) => {
+    const reason = reportReason.trim();
+    if (!reason) return;
+    setReportingId(messageId);
+    try {
+      await chatApi.reportMessage(messageId, reason);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, isReported: true } : m)),
+      );
+      setReportPromptMsgId(null);
+      setReportReason('');
+    } catch (err) {
+      setSendError(apiError(err));
+    } finally {
+      setReportingId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -126,6 +144,8 @@ export default function ChatThreadPage() {
   }
 
   const isBlocked = thread?.isBlocked ?? false;
+  const isClosed = thread?.isClosed ?? false;
+  const inputDisabled = isBlocked || isClosed || sending;
   const otherName = thread?.otherDisplayName ?? 'User';
   const otherPhoto = thread?.otherPhotoUrl;
 
@@ -154,37 +174,43 @@ export default function ChatThreadPage() {
 
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-900 truncate">{otherName}</p>
-          {isBlocked && (
-            <p className="text-xs text-red-500">Blocked</p>
-          )}
+          {isBlocked && <p className="text-xs text-red-500">Blocked</p>}
+          {isClosed && <p className="text-xs text-orange-500">Closed by admin</p>}
         </div>
 
         {/* Block / Unblock */}
-        <div className="relative">
-          {isBlocked ? (
-            <button
-              onClick={handleUnblock}
-              disabled={blocking}
-              className="text-xs text-blue-600 hover:underline disabled:opacity-50"
-            >
-              {blocking ? '…' : 'Unblock'}
-            </button>
-          ) : (
-            <button
-              onClick={handleBlock}
-              disabled={blocking}
-              className="text-xs text-red-500 hover:underline disabled:opacity-50"
-            >
-              {blocking ? '…' : 'Block'}
-            </button>
-          )}
-        </div>
+        {!isClosed && (
+          <div className="relative">
+            {isBlocked ? (
+              <button
+                onClick={handleUnblock}
+                disabled={blocking}
+                className="text-xs text-blue-600 hover:underline disabled:opacity-50"
+              >
+                {blocking ? '…' : 'Unblock'}
+              </button>
+            ) : (
+              <button
+                onClick={handleBlock}
+                disabled={blocking}
+                className="text-xs text-red-500 hover:underline disabled:opacity-50"
+              >
+                {blocking ? '…' : 'Block'}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Blocked notice */}
+      {/* Status notices */}
       {isBlocked && (
         <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700 mt-3 text-center">
           Messaging is disabled — one of you has blocked the other.
+        </div>
+      )}
+      {isClosed && (
+        <div className="bg-orange-50 border border-orange-200 rounded-lg px-4 py-2 text-sm text-orange-700 mt-3 text-center">
+          This conversation has been closed by an admin. No new messages can be sent.
         </div>
       )}
 
@@ -198,23 +224,83 @@ export default function ChatThreadPage() {
 
         {messages.map((msg) => {
           const isMine = msg.senderId === myId;
+          const isReportPromptOpen = reportPromptMsgId === msg.id;
+
           return (
-            <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words ${
-                  isMine
-                    ? 'bg-primary-600 text-white rounded-br-sm'
-                    : 'bg-gray-100 text-gray-800 rounded-bl-sm'
-                }`}
-              >
-                <p>{msg.body}</p>
-                <p className={`text-[10px] mt-1 text-right ${isMine ? 'text-primary-200' : 'text-gray-400'}`}>
-                  {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  {isMine && (
-                    <span className="ml-1">{msg.isRead ? '✓✓' : '✓'}</span>
-                  )}
-                </p>
+            <div key={msg.id} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+              <div className={`flex items-end gap-1.5 max-w-[80%] ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
+                <div
+                  className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words ${
+                    isMine
+                      ? 'bg-primary-600 text-white rounded-br-sm'
+                      : 'bg-gray-100 text-gray-800 rounded-bl-sm'
+                  }`}
+                >
+                  <p>{msg.body}</p>
+                  <p className={`text-[10px] mt-1 text-right ${isMine ? 'text-primary-200' : 'text-gray-400'}`}>
+                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {isMine && (
+                      <span className="ml-1">{msg.isRead ? '✓✓' : '✓'}</span>
+                    )}
+                  </p>
+                </div>
+
+                {/* Report button — only for the other person's messages */}
+                {!isMine && (
+                  <button
+                    onClick={() => {
+                      if (isReportPromptOpen) {
+                        setReportPromptMsgId(null);
+                        setReportReason('');
+                      } else {
+                        setReportPromptMsgId(msg.id);
+                        setReportReason('');
+                      }
+                    }}
+                    title={msg.isReported ? 'Already reported' : 'Report message'}
+                    disabled={msg.isReported}
+                    className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-colors ${
+                      msg.isReported
+                        ? 'text-gray-300 cursor-default'
+                        : 'text-gray-300 hover:text-red-400'
+                    }`}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 21V5a2 2 0 012-2h14l-4 4H5v14" />
+                    </svg>
+                  </button>
+                )}
               </div>
+
+              {/* Inline report form */}
+              {isReportPromptOpen && (
+                <div className="mt-1.5 bg-white border border-gray-200 rounded-xl shadow-sm p-3 w-72">
+                  <p className="text-xs font-semibold text-gray-700 mb-2">Report this message</p>
+                  <textarea
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    placeholder="Describe the issue…"
+                    maxLength={300}
+                    rows={2}
+                    className="w-full resize-none text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-300"
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => handleReport(msg.id)}
+                      disabled={!reportReason.trim() || reportingId === msg.id}
+                      className="flex-1 text-xs bg-red-500 text-white rounded-lg py-1.5 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {reportingId === msg.id ? 'Submitting…' : 'Submit'}
+                    </button>
+                    <button
+                      onClick={() => { setReportPromptMsgId(null); setReportReason(''); }}
+                      className="flex-1 text-xs bg-gray-100 text-gray-600 rounded-lg py-1.5 hover:bg-gray-200"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -244,8 +330,14 @@ export default function ChatThreadPage() {
               handleSend(e as unknown as React.FormEvent);
             }
           }}
-          placeholder={isBlocked ? 'Messaging disabled' : 'Type a message… (Enter to send)'}
-          disabled={isBlocked || sending}
+          placeholder={
+            isClosed
+              ? 'Conversation closed'
+              : isBlocked
+              ? 'Messaging disabled'
+              : 'Type a message… (Enter to send)'
+          }
+          disabled={inputDisabled}
           maxLength={1000}
           rows={1}
           className="flex-1 resize-none rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-300 disabled:bg-gray-50 disabled:cursor-not-allowed"
@@ -253,7 +345,7 @@ export default function ChatThreadPage() {
         />
         <button
           type="submit"
-          disabled={isBlocked || sending || !body.trim()}
+          disabled={inputDisabled || !body.trim()}
           className="btn-primary px-4 py-2.5 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {sending ? <Spinner size="sm" /> : 'Send'}
