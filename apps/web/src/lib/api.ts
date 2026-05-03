@@ -442,4 +442,10 @@ export const adminApi = {
     http
       .patch<PaymentAttemptResponse>(`/api/admin/payment-attempts/${attemptId}/reject`, { reason })
       .then((r) => r.data),
+
+  verifyIdentity: (id: string) =>
+    http.patch(`/api/admin/profiles/${id}/verify-identity`),
+
+  revokeIdentity: (id: string) =>
+    http.delete(`/api/admin/profiles/${id}/verify-identity`),
 };

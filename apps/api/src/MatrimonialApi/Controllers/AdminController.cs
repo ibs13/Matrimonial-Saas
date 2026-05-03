@@ -74,6 +74,22 @@ public class AdminController(
         return Ok(response);
     }
 
+    // PATCH /api/admin/profiles/{id}/verify-identity
+    [HttpPatch("profiles/{id:guid}/verify-identity")]
+    public async Task<IActionResult> VerifyIdentity(Guid id)
+    {
+        await adminService.VerifyIdentityAsync(CurrentAdminId, CurrentAdminEmail, id);
+        return NoContent();
+    }
+
+    // DELETE /api/admin/profiles/{id}/verify-identity
+    [HttpDelete("profiles/{id:guid}/verify-identity")]
+    public async Task<IActionResult> RevokeIdentityVerification(Guid id)
+    {
+        await adminService.RevokeIdentityVerificationAsync(CurrentAdminId, CurrentAdminEmail, id);
+        return NoContent();
+    }
+
     // GET /api/admin/audit-logs
     [HttpGet("audit-logs")]
     public async Task<IActionResult> GetAuditLogs([FromQuery] AuditLogListRequest request)

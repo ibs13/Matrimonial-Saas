@@ -57,6 +57,10 @@ public class EmailVerificationService(AppDbContext db, IEmailSender emailSender,
         record.UsedAt = DateTime.UtcNow;
         record.User.IsEmailVerified = true;
 
+        var index = await db.ProfileIndexes.FindAsync(record.User.Id);
+        if (index is not null)
+            index.IsEmailVerified = true;
+
         await db.SaveChangesAsync();
     }
 

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { searchApi, interestApi, savedApi } from '@/lib/api';
 import { enumLabel, timeAgo, apiError } from '@/lib/utils';
 import Spinner from '@/components/ui/Spinner';
+import VerificationBadgeList from '@/components/profile/VerificationBadges';
 import type {
   SearchResultItem,
   SearchProfilesRequest,
@@ -462,6 +463,9 @@ function ProfileCard({
         {item.maritalStatus && <Detail emoji="💒" text={enumLabel(item.maritalStatus)} />}
         {item.employmentType && <Detail emoji="💼" text={enumLabel(item.employmentType)} />}
       </div>
+
+      {/* Verification badges */}
+      <VerificationBadgeList badges={item.badges} size="sm" />
 
       {/* Completion bar */}
       <div className="flex items-center gap-2">

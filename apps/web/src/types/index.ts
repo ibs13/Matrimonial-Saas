@@ -163,6 +163,7 @@ export interface ProfileResponse {
   photos?: ProfilePhoto[];
   contact?: ContactInfo;
   missingFields?: ProfileCompletionField[];
+  badges?: VerificationBadges;
   createdAt: string;
   updatedAt: string;
   lastActiveAt?: string;
@@ -188,6 +189,15 @@ export interface SearchProfilesRequest {
   pageSize?: number;
 }
 
+export interface VerificationBadges {
+  emailVerified: boolean;
+  phoneAdded: boolean;
+  photoApproved: boolean;
+  profileApproved: boolean;
+  identityVerified: boolean;
+  isPremium: boolean;
+}
+
 export interface SearchResultItem {
   userId: string;
   displayName: string;
@@ -204,6 +214,7 @@ export interface SearchResultItem {
   completionPercentage: number;
   lastActiveAt?: string;
   photoUrl?: string;
+  badges?: VerificationBadges;
 }
 
 export interface SearchResponse {

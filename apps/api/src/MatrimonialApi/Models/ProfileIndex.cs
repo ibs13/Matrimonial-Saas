@@ -46,6 +46,19 @@ public class ProfileIndex
     /// <summary>Null unless the profile has an approved, publicly-visible photo.</summary>
     public string? PhotoUrl { get; set; }
 
+    // ── Verification badges ───────────────────────────────────────────────────
+    /// <summary>Mirrors User.IsEmailVerified — synced on email verification.</summary>
+    public bool IsEmailVerified { get; set; } = false;
+
+    /// <summary>True when Profile.Contact.Phone is non-empty — synced on profile save.</summary>
+    public bool HasPhone { get; set; } = false;
+
+    /// <summary>Admin-set only: identity documents have been reviewed and confirmed.</summary>
+    public bool IsIdentityVerified { get; set; } = false;
+
+    /// <summary>True when UserMembership.Plan != Free and not expired — synced on payment verification.</summary>
+    public bool IsPremiumMember { get; set; } = false;
+
     // ── Meta ──────────────────────────────────────────────────────────────────
     public int CompletionPercentage { get; set; } = 0;
     public DateTime? LastActiveAt { get; set; }

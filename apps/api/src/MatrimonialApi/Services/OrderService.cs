@@ -112,6 +112,10 @@ public class OrderService(AppDbContext pgDb)
         membership.ExpiresAt = now.AddDays(order.DurationDays);
         membership.UpdatedAt = now;
 
+        var profileIndex = await pgDb.ProfileIndexes.FindAsync(order.UserId);
+        if (profileIndex is not null)
+            profileIndex.IsPremiumMember = order.Plan != MembershipPlan.Free;
+
         pgDb.AuditLogs.Add(new AuditLog
         {
             AdminId = adminId,

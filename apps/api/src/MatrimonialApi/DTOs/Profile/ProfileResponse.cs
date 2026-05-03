@@ -27,6 +27,8 @@ public class ProfileResponse
     /// <summary>Fields that are not yet filled. Required ones block submission.</summary>
     public List<ProfileCompletionField> MissingFields { get; set; } = [];
 
+    public VerificationBadgesDto Badges { get; set; } = new();
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? LastActiveAt { get; set; }

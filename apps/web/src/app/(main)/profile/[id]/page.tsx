@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { interestApi, profileApi, reportApi } from '@/lib/api';
 import { enumLabel, timeAgo, apiError } from '@/lib/utils';
 import Spinner from '@/components/ui/Spinner';
+import VerificationBadgeList from '@/components/profile/VerificationBadges';
 import type { SearchResultItem, ReportReason, ContactStatusResponse, ContactBlockReason } from '@/types';
 
 const REPORT_REASONS: { value: ReportReason; label: string }[] = [
@@ -120,6 +121,11 @@ export default function ProfileDetailPage() {
             {profile.lastActiveAt && (
               <p className="text-xs text-gray-400 mt-1">Active {timeAgo(profile.lastActiveAt)}</p>
             )}
+
+            {/* Verification badges */}
+            <div className="mt-3">
+              <VerificationBadgeList badges={profile.badges} />
+            </div>
 
             {/* Completion */}
             <div className="mt-3 flex items-center gap-2">

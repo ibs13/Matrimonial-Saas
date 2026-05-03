@@ -6,6 +6,7 @@ import { adminApi } from '@/lib/api';
 import { formatDate, enumLabel, apiError } from '@/lib/utils';
 import Spinner from '@/components/ui/Spinner';
 import Modal from '@/components/ui/Modal';
+import VerificationBadgeList from '@/components/profile/VerificationBadges';
 import type { PendingProfileItem, AdminProfileDetailResponse, AuditLogItem, AdminActionResponse, ReportItem, PendingPhotoItem } from '@/types';
 
 type Tab = 'pending' | 'photos' | 'reports' | 'auditLogs';
@@ -186,6 +187,25 @@ export default function AdminProfilesPage() {
     }
   };
 
+  const handleVerifyIdentity = async (id: string, verify: boolean) => {
+    if (!confirm(verify ? 'Mark this profile as identity verified?' : 'Revoke identity verification?')) return;
+    setActionError('');
+    setActionSuccess('');
+    try {
+      if (verify) {
+        await adminApi.verifyIdentity(id);
+        setActionSuccess('Identity verified.');
+      } else {
+        await adminApi.revokeIdentity(id);
+        setActionSuccess('Identity verification revoked.');
+      }
+      const d = await adminApi.getProfileDetail(id);
+      setDetail(d);
+    } catch (err) {
+      setActionError(apiError(err));
+    }
+  };
+
   const handleApprovePhoto = async (userId: string) => {
     setActionError('');
     setActionSuccess('');
@@ -350,6 +370,8 @@ export default function AdminProfilesPage() {
                 onApprove={() => handleApprove(selectedId)}
                 onReject={() => setModal({ type: 'reject', id: selectedId })}
                 onSuspend={() => setModal({ type: 'suspend', id: selectedId })}
+                onVerifyIdentity={() => handleVerifyIdentity(selectedId, true)}
+                onRevokeIdentity={() => handleVerifyIdentity(selectedId, false)}
               />
             )}
           </div>
@@ -528,6 +550,8 @@ function ProfileDetailPane({
   onApprove,
   onReject,
   onSuspend,
+  onVerifyIdentity,
+  onRevokeIdentity,
 }: {
   detail: AdminProfileDetailResponse;
   profileId: string;
@@ -535,8 +559,11 @@ function ProfileDetailPane({
   onApprove: () => void;
   onReject: () => void;
   onSuspend: () => void;
+  onVerifyIdentity: () => void;
+  onRevokeIdentity: () => void;
 }) {
   const p = detail.profile;
+  const isIdentityVerified = p.badges?.identityVerified ?? false;
   return (
     <div className="card space-y-5">
       {/* Header */}
@@ -548,6 +575,11 @@ function ProfileDetailPane({
             {[p.basic?.gender, p.ageYears ? `${p.ageYears} yrs` : null, p.basic?.religion, p.basic?.maritalStatus ? enumLabel(p.basic.maritalStatus) : null]
               .filter(Boolean).join(' · ')}
           </p>
+          {p.badges && (
+            <div className="mt-2">
+              <VerificationBadgeList badges={p.badges} size="sm" />
+            </div>
+          )}
         </div>
         <div className="text-right">
           <p className="text-2xl font-bold text-primary-600">{p.completionPercentage}%</p>
@@ -555,7 +587,7 @@ function ProfileDetailPane({
         </div>
       </div>
 
-      {/* Action buttons */}
+      {/* Moderation action buttons */}
       <div className="flex gap-2 flex-wrap">
         <button onClick={onApprove} disabled={actioning} className="btn-primary">
           ✅ Approve
@@ -566,6 +598,31 @@ function ProfileDetailPane({
         <button onClick={onSuspend} disabled={actioning} className="btn-secondary text-orange-700 border-orange-300 hover:bg-orange-50">
           ⏸ Suspend
         </button>
+      </div>
+
+      {/* Identity verification (admin-only) */}
+      <div className="flex items-center gap-3 border border-dashed border-gray-300 rounded-lg px-4 py-3">
+        <span className="text-sm font-medium text-gray-700">Identity verification</span>
+        {isIdentityVerified ? (
+          <button
+            onClick={onRevokeIdentity}
+            disabled={actioning}
+            className="ml-auto btn-secondary text-xs py-1 px-3 text-red-700 border-red-300 hover:bg-red-50"
+          >
+            Revoke
+          </button>
+        ) : (
+          <button
+            onClick={onVerifyIdentity}
+            disabled={actioning}
+            className="ml-auto btn-secondary text-xs py-1 px-3 text-blue-700 border-blue-300 hover:bg-blue-50"
+          >
+            🪪 Mark as Verified
+          </button>
+        )}
+        <span className={`text-xs font-medium ${isIdentityVerified ? 'text-blue-700' : 'text-gray-400'}`}>
+          {isIdentityVerified ? 'Verified' : 'Not verified'}
+        </span>
       </div>
 
       {/* Profile sections */}
@@ -715,9 +772,9 @@ function PendingPhotoCard({ photo, onApprove, onReject }: {
 
 function AuditLogRow({ log }: { log: AuditLogItem }) {
   const actionColor =
-    log.action === 'ApproveProfile'
+    log.action === 'ApproveProfile' || log.action === 'VerifyIdentity'
       ? 'bg-green-100 text-green-800'
-      : log.action === 'RejectProfile'
+      : log.action === 'RejectProfile' || log.action === 'RevokeIdentity'
       ? 'bg-red-100 text-red-800'
       : 'bg-orange-100 text-orange-800';
 

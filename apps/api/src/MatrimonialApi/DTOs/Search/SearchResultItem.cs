@@ -1,3 +1,5 @@
+using MatrimonialApi.DTOs.Profile;
+
 namespace MatrimonialApi.DTOs.Search;
 
 /// <summary>
@@ -22,4 +24,5 @@ public class SearchResultItem
     public DateTime? LastActiveAt { get; set; }
     /// <summary>Only set when the profile has an Approved + Public photo.</summary>
     public string? PhotoUrl { get; set; }
+    public VerificationBadgesDto Badges { get; set; } = new();
 }

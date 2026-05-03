@@ -34,7 +34,8 @@ public class ProfileService(AppDbContext pgDb, MongoDbContext mongoDb, IPhotoSto
     public async Task<ProfileResponse> GetMyProfileAsync(Guid userId)
     {
         var profile = await GetOrThrowAsync(userId);
-        return ToResponse(profile);
+        var index = await pgDb.ProfileIndexes.FindAsync(userId);
+        return ToResponse(profile, index);
     }
 
     // ── Section updates ───────────────────────────────────────────────────────
@@ -367,7 +368,8 @@ public class ProfileService(AppDbContext pgDb, MongoDbContext mongoDb, IPhotoSto
 
         await SyncIndexAsync(profile);
 
-        return ToResponse(profile);
+        var index = await pgDb.ProfileIndexes.FindAsync(profile.Id);
+        return ToResponse(profile, index);
     }
 
     private async Task SyncIndexAsync(Profile profile)
@@ -377,9 +379,20 @@ public class ProfileService(AppDbContext pgDb, MongoDbContext mongoDb, IPhotoSto
             ? ComputeAge(profile.Basic.DateOfBirth.Value)
             : (int?)null;
 
+        var user = await pgDb.Users.FindAsync(profile.Id);
+        var membership = await pgDb.UserMemberships.FindAsync(profile.Id);
+        var isPremium = membership is not null
+            && membership.Plan != MembershipPlan.Free
+            && (membership.ExpiresAt is null || membership.ExpiresAt > DateTime.UtcNow);
+        var hasPhone = !string.IsNullOrWhiteSpace(profile.Contact?.Phone);
+
         if (existing is null)
         {
-            pgDb.ProfileIndexes.Add(BuildIndex(profile, ageYears));
+            var index = BuildIndex(profile, ageYears);
+            index.IsEmailVerified = user?.IsEmailVerified ?? false;
+            index.HasPhone = hasPhone;
+            index.IsPremiumMember = isPremium;
+            pgDb.ProfileIndexes.Add(index);
         }
         else
         {
@@ -402,6 +415,10 @@ public class ProfileService(AppDbContext pgDb, MongoDbContext mongoDb, IPhotoSto
             existing.PhotoUrl = GetPublicPhotoUrl(profile);
             existing.LastActiveAt = profile.LastActiveAt;
             existing.UpdatedAt = profile.UpdatedAt;
+            existing.IsEmailVerified = user?.IsEmailVerified ?? false;
+            existing.HasPhone = hasPhone;
+            existing.IsPremiumMember = isPremium;
+            // IsIdentityVerified is admin-set — never reset by profile sync
         }
 
         await pgDb.SaveChangesAsync();
@@ -446,7 +463,7 @@ public class ProfileService(AppDbContext pgDb, MongoDbContext mongoDb, IPhotoSto
         return age;
     }
 
-    private static ProfileResponse ToResponse(Profile p) => new()
+    private static ProfileResponse ToResponse(Profile p, ProfileIndex? index = null) => new()
     {
         Id = p.Id,
         Status = p.Status,
@@ -464,6 +481,15 @@ public class ProfileService(AppDbContext pgDb, MongoDbContext mongoDb, IPhotoSto
         Photos = p.Photos,
         Contact = p.Contact,
         MissingFields = ProfileCompletionService.GetMissingFields(p),
+        Badges = new VerificationBadgesDto
+        {
+            EmailVerified = index?.IsEmailVerified ?? false,
+            PhoneAdded = index?.HasPhone ?? false,
+            PhotoApproved = index?.PhotoUrl != null,
+            ProfileApproved = p.Status == ProfileStatus.Active,
+            IdentityVerified = index?.IsIdentityVerified ?? false,
+            IsPremium = index?.IsPremiumMember ?? false,
+        },
         CreatedAt = p.CreatedAt,
         UpdatedAt = p.UpdatedAt,
         LastActiveAt = p.LastActiveAt,

@@ -60,10 +60,12 @@ public class AdminService(AppDbContext pgDb, MongoDbContext mongoDb)
         var user = await pgDb.Users.FindAsync(profileId)
             ?? throw new KeyNotFoundException($"User {profileId} not found.");
 
+        var index = await pgDb.ProfileIndexes.FindAsync(profileId);
+
         return new AdminProfileDetailResponse
         {
             Email = user.Email,
-            Profile = ToProfileResponse(profile),
+            Profile = ToProfileResponse(profile, index),
         };
     }
 
@@ -130,6 +132,56 @@ public class AdminService(AppDbContext pgDb, MongoDbContext mongoDb)
                 $"Profile cannot be suspended from status '{profile.Status}'.");
 
         return await ApplyStatusChangeAsync(adminId, adminEmail, profile, ProfileStatus.Paused, "SuspendProfile", reason);
+    }
+
+    // ── Identity verification ─────────────────────────────────────────────────
+
+    public async Task VerifyIdentityAsync(Guid adminId, string adminEmail, Guid profileId)
+    {
+        var index = await pgDb.ProfileIndexes.FindAsync(profileId)
+            ?? throw new KeyNotFoundException($"Profile {profileId} not found.");
+
+        index.IsIdentityVerified = true;
+
+        pgDb.AuditLogs.Add(new AuditLog
+        {
+            AdminId = adminId,
+            AdminEmail = adminEmail,
+            Action = "VerifyIdentity",
+            EntityType = "Profile",
+            EntityId = profileId,
+            CreatedAt = DateTime.UtcNow,
+        });
+
+        pgDb.Notifications.Add(new Notification
+        {
+            UserId = profileId,
+            Type = NotificationType.ProfileApproved,
+            Title = "Identity verified",
+            Body = "Your identity has been reviewed and verified by our team.",
+        });
+
+        await pgDb.SaveChangesAsync();
+    }
+
+    public async Task RevokeIdentityVerificationAsync(Guid adminId, string adminEmail, Guid profileId)
+    {
+        var index = await pgDb.ProfileIndexes.FindAsync(profileId)
+            ?? throw new KeyNotFoundException($"Profile {profileId} not found.");
+
+        index.IsIdentityVerified = false;
+
+        pgDb.AuditLogs.Add(new AuditLog
+        {
+            AdminId = adminId,
+            AdminEmail = adminEmail,
+            Action = "RevokeIdentity",
+            EntityType = "Profile",
+            EntityId = profileId,
+            CreatedAt = DateTime.UtcNow,
+        });
+
+        await pgDb.SaveChangesAsync();
     }
 
     // ── Pending photos ────────────────────────────────────────────────────────
@@ -436,7 +488,7 @@ public class AdminService(AppDbContext pgDb, MongoDbContext mongoDb)
         return profile ?? throw new KeyNotFoundException($"Profile {profileId} not found.");
     }
 
-    private static ProfileResponse ToProfileResponse(Profile p)
+    private static ProfileResponse ToProfileResponse(Profile p, ProfileIndex? index = null)
     {
         static int ComputeAge(DateTime dob)
         {
@@ -463,6 +515,15 @@ public class AdminService(AppDbContext pgDb, MongoDbContext mongoDb)
             PartnerExpectations = p.PartnerExpectations,
             Photos = p.Photos,
             Contact = p.Contact,
+            Badges = new VerificationBadgesDto
+            {
+                EmailVerified = index?.IsEmailVerified ?? false,
+                PhoneAdded = index?.HasPhone ?? false,
+                PhotoApproved = index?.PhotoUrl != null,
+                ProfileApproved = p.Status == ProfileStatus.Active,
+                IdentityVerified = index?.IsIdentityVerified ?? false,
+                IsPremium = index?.IsPremiumMember ?? false,
+            },
             CreatedAt = p.CreatedAt,
             UpdatedAt = p.UpdatedAt,
             LastActiveAt = p.LastActiveAt,

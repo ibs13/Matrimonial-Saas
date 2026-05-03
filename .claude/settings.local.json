@@ -24,7 +24,8 @@
       "Bash(Get-ChildItem -Path \"D:\\\\Project\\\\matrimonial-saas\" -Recurse -Depth 2)",
       "Bash(Select-Object FullName)",
       "PowerShell(head *)",
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(Get-ChildItem -Path \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\frontend\\\\src\" -Recurse -Include \"*.ts\" -o Name)"
     ]
   }
 }

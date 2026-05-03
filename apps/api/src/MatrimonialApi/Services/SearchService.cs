@@ -1,4 +1,5 @@
 using MatrimonialApi.Data;
+using MatrimonialApi.DTOs.Profile;
 using MatrimonialApi.DTOs.Search;
 using Microsoft.EntityFrameworkCore;
 
@@ -94,6 +95,15 @@ public class SearchService(AppDbContext pgDb)
                 CompletionPercentage = p.CompletionPercentage,
                 LastActiveAt = p.LastActiveAt,
                 PhotoUrl = p.PhotoUrl,
+                Badges = new VerificationBadgesDto
+                {
+                    EmailVerified = p.IsEmailVerified,
+                    PhoneAdded = p.HasPhone,
+                    PhotoApproved = p.PhotoUrl != null,
+                    ProfileApproved = p.Status == "Active",
+                    IdentityVerified = p.IsIdentityVerified,
+                    IsPremium = p.IsPremiumMember,
+                },
             })
             .ToListAsync();
 
