@@ -651,3 +651,37 @@ export interface AdminDashboardMetrics {
   acceptedInterests: number;
   recentActivity: RecentActivityItem[];
 }
+
+// ── Chat ─────────────────────────────────────────────────────────────────────
+
+export interface ConversationListItem {
+  conversationId: string;
+  otherUserId: string;
+  otherDisplayName: string;
+  otherPhotoUrl?: string;
+  lastMessage?: string;
+  lastMessageAt?: string;
+  unreadCount: number;
+  isBlocked: boolean;
+}
+
+export interface MessageResponse {
+  id: string;
+  senderId: string;
+  body: string;
+  createdAt: string;
+  isRead: boolean;
+}
+
+export interface MessageThreadResponse {
+  conversationId: string | null;
+  otherUserId: string;
+  otherDisplayName: string;
+  otherPhotoUrl?: string;
+  messages: MessageResponse[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  isBlocked: boolean;
+}

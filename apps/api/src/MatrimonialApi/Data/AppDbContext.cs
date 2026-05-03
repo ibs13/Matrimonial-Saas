@@ -23,6 +23,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<PaymentAttempt> PaymentAttempts => Set<PaymentAttempt>();
     public DbSet<ContactUnlock> ContactUnlocks => Set<ContactUnlock>();
     public DbSet<ProfileMatch> ProfileMatches => Set<ProfileMatch>();
+    public DbSet<Conversation> Conversations => Set<Conversation>();
+    public DbSet<Message> Messages => Set<Message>();
+    public DbSet<MessageRead> MessageReads => Set<MessageRead>();
+    public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -452,6 +456,97 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             entity.HasIndex(m => m.ScoredAt)
                   .HasDatabaseName("IX_ProfileMatches_ScoredAt");
+        });
+
+        modelBuilder.Entity<Conversation>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+
+            // User1Id < User2Id enforced by application; unique index prevents duplicates
+            entity.HasOne(c => c.User1)
+                  .WithMany()
+                  .HasForeignKey(c => c.User1Id)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(c => c.User2)
+                  .WithMany()
+                  .HasForeignKey(c => c.User2Id)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(c => new { c.User1Id, c.User2Id })
+                  .IsUnique()
+                  .HasDatabaseName("IX_Conversations_Pair");
+
+            entity.HasIndex(c => c.LastMessageAt)
+                  .HasDatabaseName("IX_Conversations_LastMessageAt");
+        });
+
+        modelBuilder.Entity<Message>(entity =>
+        {
+            entity.HasKey(m => m.Id);
+
+            entity.HasOne(m => m.Conversation)
+                  .WithMany(c => c.Messages)
+                  .HasForeignKey(m => m.ConversationId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(m => m.Sender)
+                  .WithMany()
+                  .HasForeignKey(m => m.SenderId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.Property(m => m.Body).HasMaxLength(1000).IsRequired();
+
+            entity.HasIndex(m => new { m.ConversationId, m.CreatedAt })
+                  .HasDatabaseName("IX_Messages_Conversation");
+
+            entity.HasIndex(m => m.SenderId)
+                  .HasDatabaseName("IX_Messages_Sender");
+        });
+
+        modelBuilder.Entity<MessageRead>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+
+            entity.HasOne(r => r.Message)
+                  .WithMany(m => m.Reads)
+                  .HasForeignKey(r => r.MessageId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(r => r.Reader)
+                  .WithMany()
+                  .HasForeignKey(r => r.ReaderId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // One read record per (message, reader) pair
+            entity.HasIndex(r => new { r.MessageId, r.ReaderId })
+                  .IsUnique()
+                  .HasDatabaseName("IX_MessageReads_Pair");
+
+            entity.HasIndex(r => r.ReaderId)
+                  .HasDatabaseName("IX_MessageReads_Reader");
+        });
+
+        modelBuilder.Entity<UserBlock>(entity =>
+        {
+            entity.HasKey(b => b.Id);
+
+            entity.HasOne(b => b.Blocker)
+                  .WithMany()
+                  .HasForeignKey(b => b.BlockerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(b => b.Blocked)
+                  .WithMany()
+                  .HasForeignKey(b => b.BlockedId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(b => new { b.BlockerId, b.BlockedId })
+                  .IsUnique()
+                  .HasDatabaseName("IX_UserBlocks_Pair");
+
+            entity.HasIndex(b => b.BlockerId)
+                  .HasDatabaseName("IX_UserBlocks_Blocker");
         });
     }
 }

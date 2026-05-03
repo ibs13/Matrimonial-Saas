@@ -12,4 +12,5 @@ public enum NotificationType
     ReportReviewed,
     PaymentVerified,
     PaymentRejected,
+    NewMessage,
 }

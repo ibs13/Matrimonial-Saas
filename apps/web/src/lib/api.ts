@@ -503,3 +503,37 @@ export const supportApi = {
       .post<TicketDetailResponse>(`/api/support/${id}/messages`, { body })
       .then((r) => r.data),
 };
+
+// ── Chat ─────────────────────────────────────────────────────────────────────
+
+export const chatApi = {
+  getConversations: () =>
+    http
+      .get<import('@/types').ConversationListItem[]>('/api/chat/conversations')
+      .then((r) => r.data),
+
+  getThread: (userId: string, params?: { page?: number; pageSize?: number }) =>
+    http
+      .get<import('@/types').MessageThreadResponse>(`/api/chat/conversations/${userId}`, { params })
+      .then((r) => r.data),
+
+  sendMessage: (userId: string, body: string) =>
+    http
+      .post<import('@/types').MessageResponse>(
+        `/api/chat/conversations/${userId}/messages`,
+        { body },
+      )
+      .then((r) => r.data),
+
+  markRead: (userId: string) =>
+    http.patch(`/api/chat/conversations/${userId}/read`),
+
+  blockUser: (userId: string) =>
+    http.post(`/api/chat/users/${userId}/block`),
+
+  unblockUser: (userId: string) =>
+    http.delete(`/api/chat/users/${userId}/block`),
+
+  getUnreadCount: () =>
+    http.get<{ count: number }>('/api/chat/unread-count').then((r) => r.data),
+};

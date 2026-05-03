@@ -474,6 +474,127 @@ namespace MatrimonialApi.Data.Migrations
                     b.ToTable("ProfileMatches");
                 });
 
+            modelBuilder.Entity("MatrimonialApi.Models.Conversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastMessageAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("User1Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("User2Id")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LastMessageAt")
+                        .HasDatabaseName("IX_Conversations_LastMessageAt");
+
+                    b.HasIndex("User1Id", "User2Id")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Conversations_Pair");
+
+                    b.HasIndex("User2Id")
+                        .HasDatabaseName("IX_Conversations_User2Id");
+
+                    b.ToTable("Conversations");
+                });
+
+            modelBuilder.Entity("MatrimonialApi.Models.Message", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SenderId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId", "CreatedAt")
+                        .HasDatabaseName("IX_Messages_Conversation");
+
+                    b.HasIndex("SenderId")
+                        .HasDatabaseName("IX_Messages_Sender");
+
+                    b.ToTable("Messages");
+                });
+
+            modelBuilder.Entity("MatrimonialApi.Models.MessageRead", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ReadAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ReaderId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageId", "ReaderId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_MessageReads_Pair");
+
+                    b.HasIndex("ReaderId")
+                        .HasDatabaseName("IX_MessageReads_Reader");
+
+                    b.ToTable("MessageReads");
+                });
+
+            modelBuilder.Entity("MatrimonialApi.Models.UserBlock", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BlockedId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BlockerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BlockerId")
+                        .HasDatabaseName("IX_UserBlocks_Blocker");
+
+                    b.HasIndex("BlockerId", "BlockedId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_UserBlocks_Pair");
+
+                    b.HasIndex("BlockedId")
+                        .HasDatabaseName("IX_UserBlocks_BlockedId");
+
+                    b.ToTable("UserBlocks");
+                });
+
             modelBuilder.Entity("MatrimonialApi.Models.ProfileReport", b =>
                 {
                     b.Property<Guid>("Id")
@@ -842,6 +963,80 @@ namespace MatrimonialApi.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("MatrimonialApi.Models.Conversation", b =>
+                {
+                    b.HasOne("MatrimonialApi.Models.User", "User1")
+                        .WithMany()
+                        .HasForeignKey("User1Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MatrimonialApi.Models.User", "User2")
+                        .WithMany()
+                        .HasForeignKey("User2Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User1");
+                    b.Navigation("User2");
+                    b.Navigation("Messages");
+                });
+
+            modelBuilder.Entity("MatrimonialApi.Models.Message", b =>
+                {
+                    b.HasOne("MatrimonialApi.Models.Conversation", "Conversation")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MatrimonialApi.Models.User", "Sender")
+                        .WithMany()
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                    b.Navigation("Sender");
+                    b.Navigation("Reads");
+                });
+
+            modelBuilder.Entity("MatrimonialApi.Models.MessageRead", b =>
+                {
+                    b.HasOne("MatrimonialApi.Models.Message", "Message")
+                        .WithMany("Reads")
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MatrimonialApi.Models.User", "Reader")
+                        .WithMany()
+                        .HasForeignKey("ReaderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Message");
+                    b.Navigation("Reader");
+                });
+
+            modelBuilder.Entity("MatrimonialApi.Models.UserBlock", b =>
+                {
+                    b.HasOne("MatrimonialApi.Models.User", "Blocker")
+                        .WithMany()
+                        .HasForeignKey("BlockerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MatrimonialApi.Models.User", "Blocked")
+                        .WithMany()
+                        .HasForeignKey("BlockedId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Blocker");
+                    b.Navigation("Blocked");
                 });
 
             modelBuilder.Entity("MatrimonialApi.Models.ProfileReport", b =>

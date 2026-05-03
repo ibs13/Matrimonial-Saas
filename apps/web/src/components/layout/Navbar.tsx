@@ -4,12 +4,13 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState, useEffect } from 'react';
-import { notificationApi } from '@/lib/api';
+import { notificationApi, chatApi } from '@/lib/api';
 
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/search', label: 'Search' },
   { href: '/matches', label: 'Matches' },
+  { href: '/chat', label: 'Chat' },
   { href: '/shortlist', label: 'Shortlist' },
   { href: '/interests/sent', label: 'Sent' },
   { href: '/interests/received', label: 'Received' },
@@ -32,21 +33,26 @@ export default function Navbar() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const fetchCount = async () => {
+    const fetchCounts = async () => {
       try {
-        const { count } = await notificationApi.getUnreadCount();
-        setUnreadCount(count);
+        const [notif, chat] = await Promise.allSettled([
+          notificationApi.getUnreadCount(),
+          chatApi.getUnreadCount(),
+        ]);
+        if (notif.status === 'fulfilled') setUnreadCount(notif.value.count);
+        if (chat.status === 'fulfilled') setUnreadMessages(chat.value.count);
       } catch {
-        // silently ignore — notification badge is non-critical
+        // silently ignore — badges are non-critical
       }
     };
 
-    fetchCount();
-    const timer = setInterval(fetchCount, 60_000);
+    fetchCounts();
+    const timer = setInterval(fetchCounts, 60_000);
     return () => clearInterval(timer);
   }, [isAuthenticated]);
 
@@ -73,13 +79,18 @@ export default function Navbar() {
               <Link
                 key={l.href}
                 href={l.href}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`relative px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   isActive(l.href)
                     ? 'bg-primary-50 text-primary-700'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                 }`}
               >
                 {l.label}
+                {l.href === '/chat' && unreadMessages > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 leading-none">
+                    {unreadMessages > 99 ? '99+' : unreadMessages}
+                  </span>
+                )}
               </Link>
             ))}
             {isAdmin &&
@@ -181,13 +192,18 @@ export default function Navbar() {
             <Link
               key={l.href}
               href={l.href}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium ${
+              className={`relative flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium ${
                 isActive(l.href)
                   ? 'bg-primary-50 text-primary-700'
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
               {l.label}
+              {l.href === '/chat' && unreadMessages > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] bg-rose-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5 leading-none">
+                  {unreadMessages > 99 ? '99+' : unreadMessages}
+                </span>
+              )}
             </Link>
           ))}
           {isAdmin &&
