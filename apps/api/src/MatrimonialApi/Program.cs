@@ -51,6 +51,7 @@ builder.Services.AddScoped<ProfileViewService>();
 builder.Services.AddScoped<MembershipService>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<ContactUnlockService>();
+builder.Services.AddScoped<SupportService>();
 
 // Email delivery: DevEmailSender logs the verification link to the console (no real email sent).
 // Replace with SendGrid, SES, Postmark, etc. in production by implementing IEmailSender.

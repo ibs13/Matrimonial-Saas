@@ -18,6 +18,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ProfileView> ProfileViews => Set<ProfileView>();
     public DbSet<UserMembership> UserMemberships => Set<UserMembership>();
     public DbSet<Order> Orders => Set<Order>();
+    public DbSet<SupportTicket> SupportTickets => Set<SupportTicket>();
+    public DbSet<SupportTicketMessage> SupportTicketMessages => Set<SupportTicketMessage>();
     public DbSet<PaymentAttempt> PaymentAttempts => Set<PaymentAttempt>();
     public DbSet<ContactUnlock> ContactUnlocks => Set<ContactUnlock>();
 
@@ -377,6 +379,52 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             // Fast unread count
             entity.HasIndex(n => new { n.UserId, n.IsRead })
                   .HasDatabaseName("IX_Notifications_Unread");
+        });
+
+        modelBuilder.Entity<SupportTicket>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+
+            entity.HasOne(t => t.User)
+                  .WithMany()
+                  .HasForeignKey(t => t.UserId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.Property(t => t.Category)
+                  .HasConversion<string>()
+                  .HasMaxLength(32)
+                  .IsRequired();
+
+            entity.Property(t => t.Status)
+                  .HasConversion<string>()
+                  .HasMaxLength(16)
+                  .IsRequired();
+
+            entity.Property(t => t.Subject).HasMaxLength(120).IsRequired();
+
+            // User's ticket list, newest updated first
+            entity.HasIndex(t => new { t.UserId, t.UpdatedAt })
+                  .HasDatabaseName("IX_SupportTickets_User");
+
+            // Admin: filter by status
+            entity.HasIndex(t => new { t.Status, t.UpdatedAt })
+                  .HasDatabaseName("IX_SupportTickets_Status");
+        });
+
+        modelBuilder.Entity<SupportTicketMessage>(entity =>
+        {
+            entity.HasKey(m => m.Id);
+
+            entity.HasOne(m => m.Ticket)
+                  .WithMany(t => t.Messages)
+                  .HasForeignKey(m => m.TicketId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(m => m.Body).HasMaxLength(2000).IsRequired();
+
+            // Chronological message list for a ticket
+            entity.HasIndex(m => new { m.TicketId, m.CreatedAt })
+                  .HasDatabaseName("IX_SupportTicketMessages_Ticket");
         });
     }
 }

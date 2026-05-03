@@ -25,7 +25,12 @@
       "Bash(Select-Object FullName)",
       "PowerShell(head *)",
       "Bash(npx eslint *)",
-      "Bash(Get-ChildItem -Path \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\frontend\\\\src\" -Recurse -Include \"*.ts\" -o Name)"
+      "Bash(Get-ChildItem -Path \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\frontend\\\\src\" -Recurse -Include \"*.ts\" -o Name)",
+      "Bash(New-Item -ItemType Directory -Force \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web\\\\src\\\\app\\\\\\(main\\)\\\\support\")",
+      "Bash(New-Item -ItemType Directory -Force \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web\\\\src\\\\app\\\\\\(main\\)\\\\support\\\\new\")",
+      "Bash(New-Item -ItemType Directory -Force \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web\\\\src\\\\app\\\\\\(main\\)\\\\support\\\\[id]\")",
+      "Bash(New-Item -ItemType Directory -Force \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web\\\\src\\\\app\\\\admin\\\\support\")",
+      "Bash(Write-Output \"dirs created\")"
     ]
   }
 }

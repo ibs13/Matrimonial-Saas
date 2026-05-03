@@ -15,12 +15,14 @@ const navLinks = [
   { href: '/profile/viewers', label: 'Viewers' },
   { href: '/membership', label: 'Plans' },
   { href: '/billing', label: 'Billing' },
+  { href: '/support', label: 'Support' },
 ];
 
 const adminLinks = [
   { href: '/admin/dashboard', label: 'Admin Dashboard' },
   { href: '/admin/profiles', label: 'Review Queue' },
   { href: '/admin/payments', label: 'Payments' },
+  { href: '/admin/support', label: 'Support Queue' },
 ];
 
 export default function Navbar() {

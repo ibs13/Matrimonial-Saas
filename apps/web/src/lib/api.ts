@@ -38,6 +38,12 @@ import type {
   OrderListResponse,
   PaymentAttemptResponse,
   PaymentAttemptListResponse,
+  TicketDetailResponse,
+  TicketListResponse,
+  AdminTicketDetailResponse,
+  AdminTicketListResponse,
+  TicketCategory,
+  TicketStatus,
 } from "@/types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5255";
@@ -448,4 +454,42 @@ export const adminApi = {
 
   revokeIdentity: (id: string) =>
     http.delete(`/api/admin/profiles/${id}/verify-identity`),
+
+  getSupportTickets: (params?: { page?: number; pageSize?: number; status?: string; category?: string }) =>
+    http
+      .get<AdminTicketListResponse>("/api/admin/support", { params })
+      .then((r) => r.data),
+
+  getSupportTicketDetail: (id: string) =>
+    http
+      .get<AdminTicketDetailResponse>(`/api/admin/support/${id}`)
+      .then((r) => r.data),
+
+  replySupportTicket: (id: string, body: string) =>
+    http
+      .post<AdminTicketDetailResponse>(`/api/admin/support/${id}/messages`, { body })
+      .then((r) => r.data),
+
+  updateTicketStatus: (id: string, status: TicketStatus) =>
+    http
+      .patch<AdminTicketDetailResponse>(`/api/admin/support/${id}/status`, { status })
+      .then((r) => r.data),
+};
+
+// ── Support ───────────────────────────────────────────────────────────────────
+
+export const supportApi = {
+  create: (data: { category: TicketCategory; subject: string; body: string }) =>
+    http.post<TicketDetailResponse>("/api/support", data).then((r) => r.data),
+
+  getAll: (params?: { page?: number; pageSize?: number }) =>
+    http.get<TicketListResponse>("/api/support", { params }).then((r) => r.data),
+
+  getDetail: (id: string) =>
+    http.get<TicketDetailResponse>(`/api/support/${id}`).then((r) => r.data),
+
+  addMessage: (id: string, body: string) =>
+    http
+      .post<TicketDetailResponse>(`/api/support/${id}/messages`, { body })
+      .then((r) => r.data),
 };

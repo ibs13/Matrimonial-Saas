@@ -424,6 +424,78 @@ export interface AuditLogListResponse {
   pageSize: number;
 }
 
+// ── Support Tickets ───────────────────────────────────────────────────────────
+
+export type TicketCategory = 'Payment' | 'Profile' | 'Report' | 'Account' | 'Other';
+export type TicketStatus = 'Open' | 'InProgress' | 'Resolved' | 'Closed';
+
+export interface TicketMessageResponse {
+  id: string;
+  isStaff: boolean;
+  body: string;
+  createdAt: string;
+}
+
+export interface TicketResponse {
+  id: string;
+  category: string;
+  subject: string;
+  status: TicketStatus;
+  messageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TicketDetailResponse {
+  id: string;
+  category: string;
+  subject: string;
+  status: TicketStatus;
+  messages: TicketMessageResponse[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TicketListResponse {
+  items: TicketResponse[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface AdminTicketItem {
+  id: string;
+  userId: string;
+  userEmail: string;
+  category: string;
+  subject: string;
+  status: TicketStatus;
+  messageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminTicketDetailResponse {
+  id: string;
+  userId: string;
+  userEmail: string;
+  category: string;
+  subject: string;
+  status: TicketStatus;
+  messages: TicketMessageResponse[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminTicketListResponse {
+  items: AdminTicketItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 // ── Contact Unlock ────────────────────────────────────────────────────────────
 
 export type ContactBlockReason = 'NoPlan' | 'NoAcceptedInterest' | 'OwnProfile';
