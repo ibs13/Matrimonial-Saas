@@ -22,6 +22,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<SupportTicketMessage> SupportTicketMessages => Set<SupportTicketMessage>();
     public DbSet<PaymentAttempt> PaymentAttempts => Set<PaymentAttempt>();
     public DbSet<ContactUnlock> ContactUnlocks => Set<ContactUnlock>();
+    public DbSet<ProfileMatch> ProfileMatches => Set<ProfileMatch>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -425,6 +426,31 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             // Chronological message list for a ticket
             entity.HasIndex(m => new { m.TicketId, m.CreatedAt })
                   .HasDatabaseName("IX_SupportTicketMessages_Ticket");
+        });
+
+        modelBuilder.Entity<ProfileMatch>(entity =>
+        {
+            entity.HasKey(m => m.Id);
+
+            entity.HasOne(m => m.User)
+                  .WithMany()
+                  .HasForeignKey(m => m.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(m => m.MatchLevel).HasMaxLength(16).IsRequired();
+            entity.Property(m => m.MatchReasons).HasColumnType("text").IsRequired();
+
+            // One score entry per user–candidate pair
+            entity.HasIndex(m => new { m.UserId, m.CandidateId })
+                  .IsUnique()
+                  .HasDatabaseName("IX_ProfileMatches_Pair");
+
+            // "My top N matches" query
+            entity.HasIndex(m => new { m.UserId, m.Score })
+                  .HasDatabaseName("IX_ProfileMatches_UserScore");
+
+            entity.HasIndex(m => m.ScoredAt)
+                  .HasDatabaseName("IX_ProfileMatches_ScoredAt");
         });
     }
 }

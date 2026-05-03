@@ -424,6 +424,38 @@ export interface AuditLogListResponse {
   pageSize: number;
 }
 
+// ── Matches ───────────────────────────────────────────────────────────────────
+
+export type MatchLevel = 'Low' | 'Fair' | 'Good' | 'Great' | 'Excellent';
+
+export interface MatchResultItem {
+  userId: string;
+  displayName: string;
+  gender?: string;
+  ageYears?: number;
+  religion?: string;
+  maritalStatus?: string;
+  countryOfResidence?: string;
+  division?: string;
+  district?: string;
+  educationLevel?: string;
+  employmentType?: string;
+  heightCm?: number;
+  completionPercentage: number;
+  lastActiveAt?: string;
+  photoUrl?: string;
+  badges?: VerificationBadges;
+  matchScore: number;
+  matchLevel: MatchLevel;
+  matchReasons: string[];
+}
+
+export interface RecommendedMatchesResponse {
+  items: MatchResultItem[];
+  hasPreferences: boolean;
+  lastScoredAt?: string;
+}
+
 // ── Support Tickets ───────────────────────────────────────────────────────────
 
 export type TicketCategory = 'Payment' | 'Profile' | 'Report' | 'Account' | 'Other';

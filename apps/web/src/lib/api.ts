@@ -44,6 +44,7 @@ import type {
   AdminTicketListResponse,
   TicketCategory,
   TicketStatus,
+  RecommendedMatchesResponse,
 } from "@/types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5255";
@@ -473,6 +474,15 @@ export const adminApi = {
   updateTicketStatus: (id: string, status: TicketStatus) =>
     http
       .patch<AdminTicketDetailResponse>(`/api/admin/support/${id}/status`, { status })
+      .then((r) => r.data),
+};
+
+// ── Matches ───────────────────────────────────────────────────────────────────
+
+export const matchApi = {
+  getRecommended: (refresh = false) =>
+    http
+      .get<RecommendedMatchesResponse>("/api/matches/recommended", { params: refresh ? { refresh: true } : undefined })
       .then((r) => r.data),
 };
 

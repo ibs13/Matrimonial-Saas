@@ -30,7 +30,8 @@
       "Bash(New-Item -ItemType Directory -Force \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web\\\\src\\\\app\\\\\\(main\\)\\\\support\\\\new\")",
       "Bash(New-Item -ItemType Directory -Force \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web\\\\src\\\\app\\\\\\(main\\)\\\\support\\\\[id]\")",
       "Bash(New-Item -ItemType Directory -Force \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web\\\\src\\\\app\\\\admin\\\\support\")",
-      "Bash(Write-Output \"dirs created\")"
+      "Bash(Write-Output \"dirs created\")",
+      "PowerShell(dotnet build *)"
     ]
   }
 }

@@ -9,6 +9,7 @@ import { notificationApi } from '@/lib/api';
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/search', label: 'Search' },
+  { href: '/matches', label: 'Matches' },
   { href: '/shortlist', label: 'Shortlist' },
   { href: '/interests/sent', label: 'Sent' },
   { href: '/interests/received', label: 'Received' },
