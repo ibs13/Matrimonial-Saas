@@ -25,4 +25,5 @@ public class MatchResultItem
     public int MatchScore { get; set; }
     public string MatchLevel { get; set; } = string.Empty;
     public List<string> MatchReasons { get; set; } = [];
+    public string? AiExplanation { get; set; }
 }

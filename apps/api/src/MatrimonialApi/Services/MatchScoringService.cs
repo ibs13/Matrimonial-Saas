@@ -9,7 +9,10 @@ using MongoDB.Driver;
 
 namespace MatrimonialApi.Services;
 
-public class MatchScoringService(AppDbContext pgDb, MongoDbContext mongoDb)
+public class MatchScoringService(
+    AppDbContext pgDb,
+    MongoDbContext mongoDb,
+    IMatchExplainerService explainer)
 {
     private static readonly TimeSpan CacheWindow = TimeSpan.FromHours(24);
 
@@ -43,7 +46,8 @@ public class MatchScoringService(AppDbContext pgDb, MongoDbContext mongoDb)
                 p => p.Id,
                 (m, p) => new
                 {
-                    p.Id,
+                    MatchId = m.Id,
+                    ProfileId = p.Id,
                     p.DisplayName,
                     p.Gender,
                     p.AgeYears,
@@ -67,12 +71,34 @@ public class MatchScoringService(AppDbContext pgDb, MongoDbContext mongoDb)
                     m.MatchLevel,
                     m.MatchReasons,
                     m.ScoredAt,
+                    m.AiExplanation,
                 })
             .ToListAsync();
 
+        // Lazily generate AI explanations for rows that don't have one yet.
+        // At most 20 per refresh window; explanations are invalidated when ScoreAsync clears matches.
+        var explanations = rows.ToDictionary(r => r.MatchId, r => r.AiExplanation);
+        var needExplanation = rows.Where(r => r.AiExplanation == null).ToList();
+        if (needExplanation.Count > 0)
+        {
+            await Task.WhenAll(needExplanation.Select(async r =>
+            {
+                var reasons = JsonSerializer.Deserialize<List<string>>(r.MatchReasons) ?? [];
+                var input = new MatchExplainerInput(r.Score, r.MatchLevel, reasons);
+                var text = await explainer.ExplainAsync(input);
+                if (text != null)
+                {
+                    explanations[r.MatchId] = text;
+                    await pgDb.ProfileMatches
+                        .Where(m => m.Id == r.MatchId)
+                        .ExecuteUpdateAsync(s => s.SetProperty(m => m.AiExplanation, text));
+                }
+            }));
+        }
+
         var items = rows.Select(r => new MatchResultItem
         {
-            UserId = r.Id,
+            UserId = r.ProfileId,
             DisplayName = r.DisplayName ?? string.Empty,
             Gender = r.Gender,
             AgeYears = r.AgeYears,
@@ -99,6 +125,7 @@ public class MatchScoringService(AppDbContext pgDb, MongoDbContext mongoDb)
             MatchScore = r.Score,
             MatchLevel = r.MatchLevel,
             MatchReasons = JsonSerializer.Deserialize<List<string>>(r.MatchReasons) ?? [],
+            AiExplanation = explanations.TryGetValue(r.MatchId, out var exp) ? exp : null,
         }).ToList();
 
         return new RecommendedMatchesResponse

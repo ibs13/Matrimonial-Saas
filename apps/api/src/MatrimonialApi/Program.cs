@@ -54,6 +54,23 @@ builder.Services.AddScoped<ContactUnlockService>();
 builder.Services.AddScoped<SupportService>();
 builder.Services.AddScoped<MatchScoringService>();
 
+// AI match explainer: use Anthropic if an API key is configured, otherwise fall back to
+// deterministic text so the feature works in development without any credentials.
+var anthropicKey = builder.Configuration["Anthropic:ApiKey"];
+if (!string.IsNullOrWhiteSpace(anthropicKey))
+{
+    builder.Services.AddHttpClient("anthropic");
+    builder.Services.AddScoped<IMatchExplainerService>(sp =>
+        new AnthropicMatchExplainerService(
+            sp.GetRequiredService<IHttpClientFactory>(),
+            sp.GetRequiredService<ILogger<AnthropicMatchExplainerService>>(),
+            anthropicKey));
+}
+else
+{
+    builder.Services.AddScoped<IMatchExplainerService, FallbackMatchExplainerService>();
+}
+
 // Email delivery: DevEmailSender logs the verification link to the console (no real email sent).
 // Replace with SendGrid, SES, Postmark, etc. in production by implementing IEmailSender.
 if (builder.Environment.IsDevelopment())

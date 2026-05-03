@@ -439,6 +439,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             entity.Property(m => m.MatchLevel).HasMaxLength(16).IsRequired();
             entity.Property(m => m.MatchReasons).HasColumnType("text").IsRequired();
+            entity.Property(m => m.AiExplanation).HasColumnType("text");
 
             // One score entry per user–candidate pair
             entity.HasIndex(m => new { m.UserId, m.CandidateId })

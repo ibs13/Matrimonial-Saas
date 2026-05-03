@@ -448,6 +448,7 @@ export interface MatchResultItem {
   matchScore: number;
   matchLevel: MatchLevel;
   matchReasons: string[];
+  aiExplanation?: string;
 }
 
 export interface RecommendedMatchesResponse {

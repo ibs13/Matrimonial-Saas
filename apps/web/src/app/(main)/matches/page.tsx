@@ -230,6 +230,13 @@ function MatchCard({
         </ul>
       )}
 
+      {/* AI-generated compatibility explanation */}
+      {item.aiExplanation && (
+        <p className="text-xs text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2 leading-relaxed">
+          ✨ {item.aiExplanation}
+        </p>
+      )}
+
       {/* Details */}
       <div className="grid grid-cols-2 gap-1.5 text-xs text-gray-600">
         {item.religion && <Detail emoji="🕌" text={item.religion} />}

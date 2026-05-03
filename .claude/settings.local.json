@@ -31,7 +31,15 @@
       "Bash(New-Item -ItemType Directory -Force \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web\\\\src\\\\app\\\\\\(main\\)\\\\support\\\\[id]\")",
       "Bash(New-Item -ItemType Directory -Force \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web\\\\src\\\\app\\\\admin\\\\support\")",
       "Bash(Write-Output \"dirs created\")",
-      "PowerShell(dotnet build *)"
+      "PowerShell(dotnet build *)",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\Project\\\\matrimonial-saas\" | Where-Object {$_.PSIsContainer} | Select-Object Name)",
+      "PowerShell(Get-ChildItem \"D:\\\\Project\\\\matrimonial-saas\" -Directory | ForEach-Object {$_.Name})",
+      "PowerShell(Get-ChildItem \"D:\\\\Project\\\\matrimonial-saas\\\\apps\" -Directory | ForEach-Object {$_.Name})",
+      "PowerShell(Get-ChildItem \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\api\\\\src\" -Directory | ForEach-Object {$_.Name})",
+      "PowerShell(Get-ChildItem \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\api\\\\src\\\\MatrimonialApi\" -Directory | ForEach-Object {$_.Name})",
+      "PowerShell(Get-ChildItem \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\api\\\\src\\\\MatrimonialApi\\\\Services\" | ForEach-Object {$_.Name})",
+      "PowerShell(Get-ChildItem \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web\" -Directory | ForEach-Object {$_.Name})",
+      "PowerShell(Get-ChildItem \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web\\\\src\" -Directory | ForEach-Object {$_.Name})"
     ]
   }
 }
