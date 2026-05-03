@@ -39,7 +39,12 @@
       "PowerShell(Get-ChildItem \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\api\\\\src\\\\MatrimonialApi\" -Directory | ForEach-Object {$_.Name})",
       "PowerShell(Get-ChildItem \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\api\\\\src\\\\MatrimonialApi\\\\Services\" | ForEach-Object {$_.Name})",
       "PowerShell(Get-ChildItem \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web\" -Directory | ForEach-Object {$_.Name})",
-      "PowerShell(Get-ChildItem \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web\\\\src\" -Directory | ForEach-Object {$_.Name})"
+      "PowerShell(Get-ChildItem \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web\\\\src\" -Directory | ForEach-Object {$_.Name})",
+      "Bash(Get-ChildItem \"D:\\\\Project\\\\matrimonial-saas\\\\apps\\\\web\\\\src\\\\app\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(ConvertTo-Json)",
+      "Bash(Get-ChildItem -Recurse -Filter \"*.md\" \"D:\\\\Project\\\\matrimonial-saas\\\\docs\")",
+      "Bash(Sort-Object FullName)"
     ]
   }
 }
